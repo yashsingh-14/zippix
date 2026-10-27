@@ -168,7 +168,7 @@ export const InspectorTab: React.FC<InspectorTabProps> = ({
 
             <button
               onClick={() => {
-                const html = generateComponentHtml(element);
+                const html = element.cloneHtml || generateComponentHtml(element);
                 const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
                 triggerDownload(blob, `${element.tagName.toLowerCase()}-preview.html`);
               }}

@@ -18,15 +18,21 @@ interface ExporterTabProps {
 }
 
 export const ExporterTab: React.FC<ExporterTabProps> = ({ tokens, element }) => {
-  const [format, setFormat] = useState<'html' | 'tailwind4' | 'tailwind3' | 'css' | 'json'>('html');
+  const [format, setFormat] = useState<'html' | 'component' | 'tailwind4' | 'tailwind3' | 'css' | 'tokens_doc'>('html');
   const [copied, setCopied] = useState(false);
 
   const getExportCode = () => {
     switch (format) {
       case 'html':
         return {
-          code: generateStandaloneHtml(tokens, element),
+          code: tokens.fullPageHtml || generateStandaloneHtml(tokens, element),
           filename: 'index.html',
+          mime: 'text/html',
+        };
+      case 'component':
+        return {
+          code: element?.cloneHtml || (element ? generateComponentHtml(element, tokens) : '<!-- Please inspect an element first -->'),
+          filename: `${element?.tagName.toLowerCase() || 'component'}.html`,
           mime: 'text/html',
         };
       case 'tailwind4':
@@ -47,11 +53,11 @@ export const ExporterTab: React.FC<ExporterTabProps> = ({ tokens, element }) => 
           filename: 'variables.css',
           mime: 'text/css',
         };
-      case 'json':
+      case 'tokens_doc':
         return {
-          code: generateDesignTokensJson(tokens),
-          filename: 'design-tokens.json',
-          mime: 'application/json',
+          code: generateStandaloneHtml(tokens, element),
+          filename: 'design-system-overview.html',
+          mime: 'text/html',
         };
     }
   };
@@ -70,11 +76,12 @@ export const ExporterTab: React.FC<ExporterTabProps> = ({ tokens, element }) => 
   };
 
   const formats = [
-    { id: 'html', label: 'Live HTML + CSS (index.html)' },
+    { id: 'html', label: '1:1 Page Clone (index.html)' },
+    ...(element ? [{ id: 'component' as const, label: `Inspected <${element.tagName.toLowerCase()}>.html` }] : []),
     { id: 'tailwind4', label: 'Tailwind v4 (@theme)' },
     { id: 'tailwind3', label: 'Tailwind v3' },
     { id: 'css', label: 'CSS Variables' },
-    { id: 'json', label: 'Tokens JSON' },
+    { id: 'tokens_doc', label: 'Design Tokens Doc' },
   ] as const;
 
   return (

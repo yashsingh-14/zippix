@@ -1,6 +1,7 @@
 import type { DesignTokens, ExtractedFont } from '../types';
 import { aggregateColors } from '../utils/colorUtils';
 import { huntAssets } from './assetHunter';
+import { cloneFullPageHtml } from './cloner';
 
 export function scanPageDesignTokens(): DesignTokens {
   const rawColors: string[] = [];
@@ -116,5 +117,6 @@ export function scanPageDesignTokens(): DesignTokens {
     shadows: Array.from(shadows).slice(0, 10),
     radii: Array.from(radii).slice(0, 10),
     extractedAt: new Date().toISOString(),
+    fullPageHtml: cloneFullPageHtml(),
   };
 }

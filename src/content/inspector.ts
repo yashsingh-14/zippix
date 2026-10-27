@@ -1,5 +1,6 @@
 import type { BoxModel, InspectedElement } from '../types';
 import { generateAiPrompt } from '../utils/tokenGenerators';
+import { cloneComponentHtml } from './cloner';
 
 export class ElementInspector {
   private host: HTMLElement | null = null;
@@ -222,6 +223,7 @@ export class ElementInspector {
       },
       html: el.outerHTML,
       cleanHtml,
+      cloneHtml: cloneComponentHtml(el),
       tailwindGuess,
       aiPrompt: '',
     };

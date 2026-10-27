@@ -63,6 +63,7 @@ export interface InspectedElement {
   };
   html: string;
   cleanHtml: string;
+  cloneHtml?: string;
   tailwindGuess: string;
   aiPrompt: string;
 }
@@ -76,6 +77,7 @@ export interface DesignTokens {
   shadows: string[];
   radii: string[];
   extractedAt: string;
+  fullPageHtml?: string;
 }
 
 export type MessageType =
