@@ -32,9 +32,29 @@ export const ExporterTab: React.FC<ExporterTabProps> = ({ tokens, element }) => 
             target: { tabId: tab.id },
             func: () => {
               const currentUrl = window.location.href;
-              const docClone = document.documentElement.cloneNode(true) as HTMLElement;
 
-              // Remove Zippix inspector elements
+              // 1. Snapshot any 3D/2D Canvas elements (Three.js / WebGL / Spline)
+              const canvasMap = new Map<number, string>();
+              document.querySelectorAll('canvas').forEach((cv, idx) => {
+                try {
+                  const dUrl = cv.toDataURL('image/png');
+                  if (dUrl && dUrl.length > 100) canvasMap.set(idx, dUrl);
+                } catch (e) {
+                  try {
+                    const off = document.createElement('canvas');
+                    off.width = cv.width || cv.clientWidth || 300;
+                    off.height = cv.height || cv.clientHeight || 150;
+                    const ctx = off.getContext('2d');
+                    if (ctx) {
+                      ctx.drawImage(cv, 0, 0);
+                      canvasMap.set(idx, off.toDataURL('image/png'));
+                    }
+                  } catch (err2) {}
+                }
+              });
+
+              // 2. Clone document
+              const docClone = document.documentElement.cloneNode(true) as HTMLElement;
               docClone.querySelector('#zippix-inspector-root')?.remove();
               docClone.querySelectorAll('script').forEach((s) => s.remove());
 
@@ -44,31 +64,154 @@ export const ExporterTab: React.FC<ExporterTabProps> = ({ tokens, element }) => 
                 docClone.insertBefore(head, docClone.firstChild);
               }
 
-              // Put <base href="..."> at the very top of <head> so all images/fonts load
+              // Prepend <base href="...">
               head.querySelectorAll('base').forEach((b) => b.remove());
               const baseTag = document.createElement('base');
               baseTag.setAttribute('href', currentUrl);
               head.insertBefore(baseTag, head.firstChild);
 
-              // Gather all stylesheets
+              // 3. Replace <canvas> with snapshot images
+              docClone.querySelectorAll('canvas').forEach((cv, idx) => {
+                const dataUrl = canvasMap.get(idx);
+                if (dataUrl) {
+                  const img = document.createElement('img');
+                  img.src = dataUrl;
+                  img.setAttribute('style', cv.getAttribute('style') || '');
+                  img.className = cv.className;
+                  cv.replaceWith(img);
+                }
+              });
+
+              // 4. Fix <video> tags
+              const liveVideos = document.querySelectorAll('video');
+              docClone.querySelectorAll('video').forEach((clonedV, idx) => {
+                const liveV = liveVideos[idx];
+                const vSrc = (liveV && (liveV.currentSrc || liveV.src)) || clonedV.currentSrc || clonedV.src;
+                if (vSrc) {
+                  try { clonedV.src = new URL(vSrc, currentUrl).href; } catch { clonedV.src = vSrc; }
+                }
+                clonedV.setAttribute('autoplay', '');
+                clonedV.setAttribute('loop', '');
+                clonedV.setAttribute('muted', '');
+                clonedV.setAttribute('playsinline', '');
+              });
+
+              // 5. Fix <img> and <picture> sources
+              const liveImgs = document.querySelectorAll('img');
+              docClone.querySelectorAll('img').forEach((img, idx) => {
+                const liveImg = liveImgs[idx];
+                const iSrc = (liveImg && (liveImg.currentSrc || liveImg.src)) || img.getAttribute('src');
+                if (iSrc) {
+                  try { img.src = new URL(iSrc, currentUrl).href; } catch { img.src = iSrc; }
+                }
+                img.setAttribute('loading', 'eager');
+                img.removeAttribute('decoding');
+                const ss = img.getAttribute('srcset');
+                if (ss) {
+                  try {
+                    img.setAttribute('srcset', ss.split(',').map((p) => {
+                      const [u, sz] = p.trim().split(/\s+/);
+                      if (!u.startsWith('http') && !u.startsWith('//') && !u.startsWith('data:')) {
+                        return `${new URL(u, currentUrl).href} ${sz || ''}`.trim();
+                      }
+                      return p.trim();
+                    }).join(', '));
+                  } catch (e) {}
+                }
+              });
+
+              // Fix <source> tags
+              docClone.querySelectorAll('source').forEach((source) => {
+                const sSrc = source.getAttribute('src');
+                if (sSrc && !sSrc.startsWith('http') && !sSrc.startsWith('//') && !sSrc.startsWith('data:')) {
+                  try { source.setAttribute('src', new URL(sSrc, currentUrl).href); } catch {}
+                }
+                const sSet = source.getAttribute('srcset');
+                if (sSet) {
+                  try {
+                    source.setAttribute('srcset', sSet.split(',').map((p) => {
+                      const [u, sz] = p.trim().split(/\s+/);
+                      if (!u.startsWith('http') && !u.startsWith('//') && !u.startsWith('data:')) {
+                        return `${new URL(u, currentUrl).href} ${sz || ''}`.trim();
+                      }
+                      return p.trim();
+                    }).join(', '));
+                  } catch (e) {}
+                }
+              });
+
+              // 6. Sync computed styles, background-images & 3D transforms for elements
+              const liveElements = document.querySelectorAll('*');
+              const clonedElements = docClone.querySelectorAll('*');
+              const total = Math.min(liveElements.length, clonedElements.length);
+              for (let i = 0; i < total; i++) {
+                const live = liveElements[i] as HTMLElement;
+                const cloned = clonedElements[i] as HTMLElement;
+                if (live && cloned && live.nodeType === 1) {
+                  try {
+                    const comp = window.getComputedStyle(live);
+                    if (comp.backgroundImage && comp.backgroundImage !== 'none' && comp.backgroundImage.includes('url(')) {
+                      cloned.style.backgroundImage = comp.backgroundImage.replace(/url\(\s*(['"]?)(.*?)\1\s*\)/gi, (m, q, r) => {
+                        if (r.startsWith('data:') || r.startsWith('http')) return m;
+                        try { return `url("${new URL(r, currentUrl).href}")`; } catch { return m; }
+                      });
+                      cloned.style.backgroundSize = comp.backgroundSize;
+                      cloned.style.backgroundPosition = comp.backgroundPosition;
+                      cloned.style.backgroundRepeat = comp.backgroundRepeat;
+                    }
+                    if (comp.transform && comp.transform !== 'none' && !cloned.style.transform) {
+                      cloned.style.transform = comp.transform;
+                      cloned.style.transformOrigin = comp.transformOrigin;
+                    }
+                    const op = parseFloat(comp.opacity);
+                    if (op > 0.05 && comp.display !== 'none' && comp.visibility !== 'hidden') {
+                      if (cloned.style.opacity === '0') cloned.style.opacity = '1';
+                      if (cloned.style.visibility === 'hidden') cloned.style.visibility = 'visible';
+                    }
+                  } catch (e) {}
+                }
+              }
+
+              // 7. Inline stylesheets with rewritten absolute URLs
               let inlinedStyles = '';
               for (const sheet of Array.from(document.styleSheets)) {
                 try {
                   const rules = sheet.cssRules || sheet.rules;
                   if (rules) {
                     for (const rule of Array.from(rules)) {
-                      inlinedStyles += rule.cssText + '\n';
+                      inlinedStyles += rule.cssText.replace(/url\(\s*(['"]?)(.*?)\1\s*\)/gi, (m, q, r) => {
+                        if (r.startsWith('data:') || r.startsWith('http')) return m;
+                        try { return `url("${new URL(r, sheet.href || currentUrl).href}")`; } catch { return m; }
+                      }) + '\n';
                     }
                   }
                 } catch (e) {}
               }
 
+              docClone.querySelectorAll('link[rel="stylesheet"]').forEach((link) => {
+                const href = link.getAttribute('href');
+                if (href && !href.startsWith('http') && !href.startsWith('//') && !href.startsWith('data:')) {
+                  try { link.setAttribute('href', new URL(href, currentUrl).href); } catch {}
+                }
+              });
+
               if (inlinedStyles) {
                 const styleEl = document.createElement('style');
-                styleEl.setAttribute('data-zippix', 'cloned-styles');
+                styleEl.setAttribute('data-zippix', 'master-cloned-styles');
                 styleEl.textContent = inlinedStyles;
                 head.appendChild(styleEl);
               }
+
+              const helperStyle = document.createElement('style');
+              helperStyle.textContent = `
+                *, *::before, *::after {
+                  animation-play-state: running !important;
+                }
+                video {
+                  pointer-events: auto !important;
+                }
+              `;
+              head.appendChild(helperStyle);
 
               return '<!DOCTYPE html>\n' + docClone.outerHTML;
             },
