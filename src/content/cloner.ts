@@ -53,8 +53,10 @@ export function cloneFullPageHtml(): string {
   baseTag.setAttribute('href', currentUrl);
   head.insertBefore(baseTag, head.firstChild);
 
-  // 5. Preserve website scripts (Next.js hydration, GSAP, etc.)
-  // Remove only intrusive trackers (GTM, FB pixel, Hotjar)
+  // 5. Filter scripts:
+  // - Remove trackers (GTM, FB pixel, etc.)
+  // - Remove Next.js/Turbopack/Webpack framework hydration chunks (they throw fatal ErrorBoundary: "This page couldn't load" on local file://)
+  // - Keep animation and utility scripts (GSAP, Locomotive, Swiper, Three.js)
   docClone.querySelectorAll('script').forEach((s) => {
     const src = s.getAttribute('src');
     if (src) {
@@ -67,6 +69,17 @@ export function cloneFullPageHtml(): string {
         s.remove();
         return;
       }
+
+      // Crucial: Strip Next.js router/hydration runtime chunks to prevent "This page couldn't load" crash
+      if (
+        src.includes('/_next/static/chunks/') ||
+        src.includes('turbopack') ||
+        src.includes('webpack')
+      ) {
+        s.remove();
+        return;
+      }
+
       try {
         s.setAttribute('src', new URL(src, currentUrl).href);
         s.setAttribute('crossorigin', 'anonymous');
@@ -74,9 +87,14 @@ export function cloneFullPageHtml(): string {
     }
   });
 
-  // 6. Preload links: resolve all script / font preloads to absolute URLs
+  // 6. Preload links: resolve all font / asset preloads to absolute URLs (remove Next chunk preloads)
   docClone.querySelectorAll('link').forEach((link) => {
     const href = link.getAttribute('href');
+    const rel = link.getAttribute('rel');
+    if (href && (href.includes('/_next/static/chunks/') || href.includes('turbopack'))) {
+      link.remove();
+      return;
+    }
     if (href && !href.startsWith('http') && !href.startsWith('//') && !href.startsWith('data:')) {
       try {
         link.setAttribute('href', new URL(href, currentUrl).href);
