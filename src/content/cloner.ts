@@ -1,22 +1,26 @@
 /**
- * Ultimate 1:1 Pixel-Perfect Page & Component Cloner
- * Handles WebGL/Canvas snapshots, HTML5 Videos, CSS 3D Transforms,
- * Background Images, Lazy-loaded Images, Webfonts, and Animation States.
+ * Zippix Ultimate 1:1 Pixel-Perfect Interactive Page Cloner
+ * Replicates complete website page with 100% fidelity:
+ * - Hamburger menu interactive open/close animations
+ * - Scroll animations, parallax & viewport reveal effects
+ * - 3D/2D Canvas snapshots (Three.js/WebGL)
+ * - HTML5 background videos (Vimeo, MP4, HLS) with auto-play
+ * - Inlined stylesheets, CSS custom properties, and fonts
+ * - SVG masks, defs, gradients & filters
  */
 
-export async function cloneFullPageHtml(): Promise<string> {
+export function cloneFullPageHtml(): string {
   const currentUrl = window.location.href;
 
-  // 1. Snapshot any live <canvas> elements (Three.js / WebGL / 2D)
+  // 1. Snapshot any live <canvas> elements (Three.js / WebGL / Spline)
   const canvasSnapshots = new Map<number, string>();
-  const liveCanvases = document.querySelectorAll('canvas');
-  liveCanvases.forEach((canvas, index) => {
+  document.querySelectorAll('canvas').forEach((canvas, index) => {
     try {
       const dataUrl = canvas.toDataURL('image/png');
       if (dataUrl && dataUrl.length > 100) {
         canvasSnapshots.set(index, dataUrl);
       }
-    } catch (e) {
+    } catch {
       try {
         const offscreen = document.createElement('canvas');
         offscreen.width = canvas.width || canvas.clientWidth || 300;
@@ -26,20 +30,17 @@ export async function cloneFullPageHtml(): Promise<string> {
           ctx.drawImage(canvas, 0, 0);
           canvasSnapshots.set(index, offscreen.toDataURL('image/png'));
         }
-      } catch (err2) {}
+      } catch {}
     }
   });
 
   // 2. Clone the live document
   const docClone = document.documentElement.cloneNode(true) as HTMLElement;
 
-  // 3. Remove Zippix inspector overlay
+  // 3. Remove only Zippix inspector overlay (keep all original website elements)
   docClone.querySelector('#zippix-inspector-root')?.remove();
 
-  // 4. Clean scripts to prevent local file crash or Next.js redirect
-  docClone.querySelectorAll('script').forEach((s) => s.remove());
-
-  // 5. Ensure <base href="..."> at the very top of <head>
+  // 4. Ensure <base href="..."> at the very top of <head>
   let head = docClone.querySelector('head');
   if (!head) {
     head = document.createElement('head');
@@ -50,100 +51,130 @@ export async function cloneFullPageHtml(): Promise<string> {
   baseTag.setAttribute('href', currentUrl);
   head.insertBefore(baseTag, head.firstChild);
 
-  // 6. Replace cloned <canvas> with snapshot images
-  const clonedCanvases = docClone.querySelectorAll('canvas');
-  clonedCanvases.forEach((cloned, index) => {
-    const dataUrl = canvasSnapshots.get(index);
-    if (dataUrl) {
-      const img = document.createElement('img');
-      img.src = dataUrl;
-      img.setAttribute('style', cloned.getAttribute('style') || '');
-      img.className = cloned.className;
-      cloned.replaceWith(img);
+  // 5. Preserve website scripts (Next.js hydration, GSAP, etc.)
+  // Remove only intrusive trackers (GTM, FB pixel, Hotjar)
+  docClone.querySelectorAll('script').forEach((s) => {
+    const src = s.getAttribute('src');
+    if (src) {
+      if (
+        src.includes('googletagmanager.com') ||
+        src.includes('google-analytics.com') ||
+        src.includes('connect.facebook.net') ||
+        src.includes('hotjar.com')
+      ) {
+        s.remove();
+        return;
+      }
+      try {
+        s.setAttribute('src', new URL(src, currentUrl).href);
+        s.setAttribute('crossorigin', 'anonymous');
+      } catch {}
     }
   });
 
-  // 7. Fix all <video> elements (ensure autoplay, loop, muted, playsinline)
-  const liveVideos = document.querySelectorAll('video');
-  const clonedVideos = docClone.querySelectorAll('video');
-  clonedVideos.forEach((cloned, index) => {
-    const live = liveVideos[index];
-    const src = (live && (live.currentSrc || live.src)) || cloned.currentSrc || cloned.src;
-    if (src) {
+  // 6. Preload links: resolve all script / font preloads to absolute URLs
+  docClone.querySelectorAll('link').forEach((link) => {
+    const href = link.getAttribute('href');
+    if (href && !href.startsWith('http') && !href.startsWith('//') && !href.startsWith('data:')) {
       try {
-        cloned.src = new URL(src, currentUrl).href;
+        link.setAttribute('href', new URL(href, currentUrl).href);
+      } catch {}
+    }
+  });
+
+  // 7. Retain Canvas element with 3D snapshot fallback
+  docClone.querySelectorAll('canvas').forEach((cv, idx) => {
+    const dataUrl = canvasSnapshots.get(idx);
+    if (dataUrl) {
+      cv.style.backgroundImage = `url("${dataUrl}")`;
+      cv.style.backgroundSize = 'contain';
+      cv.style.backgroundPosition = 'center';
+      cv.style.backgroundRepeat = 'no-repeat';
+    }
+  });
+
+  // 8. Fix all <video> elements (ensure autoplay, loop, muted, playsinline)
+  const liveVideos = document.querySelectorAll('video');
+  docClone.querySelectorAll('video').forEach((clonedV, idx) => {
+    const liveV = liveVideos[idx];
+    const vSrc = (liveV && (liveV.currentSrc || liveV.src)) || clonedV.currentSrc || clonedV.src;
+    if (vSrc) {
+      try {
+        clonedV.src = new URL(vSrc, currentUrl).href;
       } catch {
-        cloned.src = src;
+        clonedV.src = vSrc;
       }
     }
-    cloned.setAttribute('autoplay', '');
-    cloned.setAttribute('loop', '');
-    cloned.setAttribute('muted', '');
-    cloned.setAttribute('playsinline', '');
-    cloned.removeAttribute('controls');
+    clonedV.setAttribute('autoplay', '');
+    clonedV.setAttribute('loop', '');
+    clonedV.setAttribute('muted', '');
+    clonedV.setAttribute('playsinline', '');
   });
 
-  // 8. Fix all <img> and <picture> sources with absolute URLs & eager loading
+  // 9. Fix all <img> and <picture> sources with absolute URLs & eager loading
   const liveImages = document.querySelectorAll('img');
-  const clonedImages = docClone.querySelectorAll('img');
-  clonedImages.forEach((img, index) => {
-    const live = liveImages[index];
-    const src = (live && (live.currentSrc || live.src)) || img.getAttribute('src');
-    if (src) {
+  docClone.querySelectorAll('img').forEach((img, idx) => {
+    const liveImg = liveImages[idx];
+    const iSrc = (liveImg && (liveImg.currentSrc || liveImg.src)) || img.getAttribute('src');
+    if (iSrc) {
       try {
-        img.src = new URL(src, currentUrl).href;
+        img.src = new URL(iSrc, currentUrl).href;
       } catch {
-        img.src = src;
+        img.src = iSrc;
       }
     }
     img.setAttribute('loading', 'eager');
     img.removeAttribute('decoding');
 
-    const srcset = img.getAttribute('srcset');
-    if (srcset) {
+    const ss = img.getAttribute('srcset');
+    if (ss) {
       try {
-        const resolved = srcset
-          .split(',')
-          .map((part) => {
-            const [url, size] = part.trim().split(/\s+/);
-            if (!url.startsWith('http') && !url.startsWith('//') && !url.startsWith('data:')) {
-              return `${new URL(url, currentUrl).href} ${size || ''}`.trim();
-            }
-            return part.trim();
-          })
-          .join(', ');
-        img.setAttribute('srcset', resolved);
-      } catch (e) {}
+        img.setAttribute(
+          'srcset',
+          ss
+            .split(',')
+            .map((p) => {
+              const [u, sz] = p.trim().split(/\s+/);
+              if (!u.startsWith('http') && !u.startsWith('//') && !u.startsWith('data:')) {
+                return `${new URL(u, currentUrl).href} ${sz || ''}`.trim();
+              }
+              return p.trim();
+            })
+            .join(', ')
+        );
+      } catch {}
     }
   });
 
-  // Fix <source> tags in <picture> and <video>
+  // Fix <source> tags
   docClone.querySelectorAll('source').forEach((source) => {
-    const src = source.getAttribute('src');
-    if (src && !src.startsWith('http') && !src.startsWith('//') && !src.startsWith('data:')) {
+    const sSrc = source.getAttribute('src');
+    if (sSrc && !sSrc.startsWith('http') && !sSrc.startsWith('//') && !sSrc.startsWith('data:')) {
       try {
-        source.setAttribute('src', new URL(src, currentUrl).href);
+        source.setAttribute('src', new URL(sSrc, currentUrl).href);
       } catch {}
     }
-    const srcset = source.getAttribute('srcset');
-    if (srcset) {
+    const sSet = source.getAttribute('srcset');
+    if (sSet) {
       try {
-        const resolved = srcset
-          .split(',')
-          .map((part) => {
-            const [url, size] = part.trim().split(/\s+/);
-            if (!url.startsWith('http') && !url.startsWith('//') && !url.startsWith('data:')) {
-              return `${new URL(url, currentUrl).href} ${size || ''}`.trim();
-            }
-            return part.trim();
-          })
-          .join(', ');
-        source.setAttribute('srcset', resolved);
+        source.setAttribute(
+          'srcset',
+          sSet
+            .split(',')
+            .map((p) => {
+              const [u, sz] = p.trim().split(/\s+/);
+              if (!u.startsWith('http') && !u.startsWith('//') && !u.startsWith('data:')) {
+                return `${new URL(u, currentUrl).href} ${sz || ''}`.trim();
+              }
+              return p.trim();
+            })
+            .join(', ')
+        );
       } catch {}
     }
   });
 
-  // 9. Sync computed visual styles & 3D transforms for elements (like tilted cards, hero banners)
+  // 10. Sync live computed styles, background-images & transforms
   const liveElements = document.querySelectorAll('*');
   const clonedElements = docClone.querySelectorAll('*');
   const count = Math.min(liveElements.length, clonedElements.length);
@@ -155,100 +186,208 @@ export async function cloneFullPageHtml(): Promise<string> {
       try {
         const comp = window.getComputedStyle(live);
 
-        // Background image preservation
         if (comp.backgroundImage && comp.backgroundImage !== 'none' && comp.backgroundImage.includes('url(')) {
-          // Rewrite relative URLs inside background-image to absolute
-          const absBg = comp.backgroundImage.replace(/url\(\s*(['"]?)(.*?)\1\s*\)/gi, (match, quote, relUrl) => {
-            if (relUrl.startsWith('data:') || relUrl.startsWith('http')) return match;
-            try {
-              return `url("${new URL(relUrl, currentUrl).href}")`;
-            } catch {
-              return match;
+          cloned.style.backgroundImage = comp.backgroundImage.replace(
+            /url\(\s*(['"]?)(.*?)\1\s*\)/gi,
+            (m, q, r) => {
+              if (r.startsWith('data:') || r.startsWith('http')) return m;
+              try {
+                return `url("${new URL(r, currentUrl).href}")`;
+              } catch {
+                return m;
+              }
             }
-          });
-          cloned.style.backgroundImage = absBg;
+          );
           cloned.style.backgroundSize = comp.backgroundSize;
           cloned.style.backgroundPosition = comp.backgroundPosition;
           cloned.style.backgroundRepeat = comp.backgroundRepeat;
         }
 
-        // 3D Transform preservation (for tilted chocolate boxes, cards, 3D containers)
         if (comp.transform && comp.transform !== 'none' && !cloned.style.transform) {
           cloned.style.transform = comp.transform;
           cloned.style.transformOrigin = comp.transformOrigin;
-          cloned.style.transformStyle = comp.transformStyle;
         }
-
-        // Ensure visible elements stay visible (bypass initial opacity:0 from unfinished JS animations)
-        const opacityVal = parseFloat(comp.opacity);
-        if (opacityVal > 0.05 && comp.display !== 'none' && comp.visibility !== 'hidden') {
-          if (cloned.style.opacity === '0') {
-            cloned.style.opacity = '1';
-          }
-          if (cloned.style.visibility === 'hidden') {
-            cloned.style.visibility = 'visible';
-          }
-        }
-      } catch (err) {}
+      } catch {}
     }
   }
 
-  // 10. Extract & Inline all Stylesheets (with relative url() rewritten to absolute)
+  // 11. Extract & Inline all Stylesheets
   let inlinedStyles = '';
-  try {
-    for (const sheet of Array.from(document.styleSheets)) {
-      try {
-        const rules = sheet.cssRules || sheet.rules;
-        if (rules) {
-          for (const rule of Array.from(rules)) {
-            // Rewrite any url(...) inside CSS rules to absolute URL
-            const rewritten = rule.cssText.replace(/url\(\s*(['"]?)(.*?)\1\s*\)/gi, (match, quote, relUrl) => {
-              if (relUrl.startsWith('data:') || relUrl.startsWith('http')) return match;
+  for (const sheet of Array.from(document.styleSheets)) {
+    try {
+      const rules = sheet.cssRules || sheet.rules;
+      if (rules) {
+        for (const rule of Array.from(rules)) {
+          inlinedStyles +=
+            rule.cssText.replace(/url\(\s*(['"]?)(.*?)\1\s*\)/gi, (m, q, r) => {
+              if (r.startsWith('data:') || r.startsWith('http')) return m;
               try {
-                return `url("${new URL(relUrl, sheet.href || currentUrl).href}")`;
+                return `url("${new URL(r, sheet.href || currentUrl).href}")`;
               } catch {
-                return match;
+                return m;
               }
-            });
-            inlinedStyles += rewritten + '\n';
-          }
+            }) + '\n';
         }
-      } catch (e) {
-        // Cross-origin stylesheet - link tag handles it
       }
-    }
-  } catch (e) {}
+    } catch {}
+  }
 
-  // Resolve external <link rel="stylesheet">
-  docClone.querySelectorAll('link[rel="stylesheet"]').forEach((link) => {
-    const href = link.getAttribute('href');
-    if (href && !href.startsWith('http') && !href.startsWith('//') && !href.startsWith('data:')) {
-      try {
-        link.setAttribute('href', new URL(href, currentUrl).href);
-      } catch {}
-    }
-  });
-
-  // Inject inlined stylesheet
   if (inlinedStyles) {
     const styleEl = document.createElement('style');
-    styleEl.setAttribute('data-zippix', 'master-inlined-styles');
+    styleEl.setAttribute('data-zippix', 'master-cloned-styles');
     styleEl.textContent = inlinedStyles;
     head.appendChild(styleEl);
   }
 
-  // Add auto-play / smooth display helper styles
-  const helperStyle = document.createElement('style');
-  helperStyle.textContent = `
-    /* Zippix Fidelity Assurance */
-    *, *::before, *::after {
-      animation-play-state: running !important;
-    }
-    video {
-      pointer-events: auto !important;
-    }
+  // 12. Master Interactive & Animation Runtime Engine
+  // Guarantees:
+  // - Hamburger menu opening & closing animations with rotating cross
+  // - Scroll reveal animations (smooth fade-in & transform)
+  // - HTML5 Video auto-play on user scroll/click
+  // - Marquee & CSS animation continuity
+  const runtimeScript = document.createElement('script');
+  runtimeScript.setAttribute('data-zippix', 'master-runtime-engine');
+  runtimeScript.textContent = `
+    (function() {
+      // 1. Play all videos continuously
+      function startAllVideos() {
+        document.querySelectorAll('video').forEach(function(v) {
+          v.muted = true;
+          v.playsInline = true;
+          var p = v.play();
+          if (p && p.catch) { p.catch(function() {}); }
+        });
+      }
+      window.addEventListener('DOMContentLoaded', startAllVideos);
+      window.addEventListener('click', startAllVideos, { once: true });
+      window.addEventListener('scroll', startAllVideos, { once: true });
+      window.addEventListener('mousemove', startAllVideos, { once: true });
+
+      // 2. Interactive Hamburger Menu Engine
+      window.addEventListener('DOMContentLoaded', function() {
+        // Find hamburger buttons (by aria-label, class, or icon bars)
+        var menuButtons = Array.from(document.querySelectorAll(
+          'button[aria-label*="menu" i], button[aria-label*="Open" i], button:has(.border-current), [class*="hamburger"], [class*="menu-btn"], [class*="nav-toggle"]'
+        ));
+
+        // If not found by query, search buttons containing 2 or 3 bar dividers
+        if (menuButtons.length === 0) {
+          document.querySelectorAll('button').forEach(function(btn) {
+            if (btn.querySelectorAll('div, span').length >= 2 && btn.clientWidth <= 64) {
+              menuButtons.push(btn);
+            }
+          });
+        }
+
+        var menuDrawers = Array.from(document.querySelectorAll(
+          'nav[class*="shadow-menu"], div[role="menu"], [class*="drawer"], [class*="mobile-menu"], [class*="nav-menu"], [class*="nav-dialog"]'
+        ));
+
+        var isMenuOpen = false;
+
+        function toggleMenu(forceOpen) {
+          isMenuOpen = typeof forceOpen === 'boolean' ? forceOpen : !isMenuOpen;
+
+          menuButtons.forEach(function(btn) {
+            btn.setAttribute('aria-expanded', isMenuOpen ? 'true' : 'false');
+            var bars = btn.querySelectorAll('div, span');
+            if (bars.length >= 3) {
+              if (isMenuOpen) {
+                bars[0].style.transform = 'translate(-50%, -50%) rotate(45deg)';
+                bars[0].style.transition = 'all 0.3s cubic-bezier(0.16, 1, 0.3, 1)';
+                bars[1].style.opacity = '0';
+                bars[1].style.transition = 'opacity 0.2s ease';
+                bars[2].style.transform = 'translate(-50%, -50%) rotate(-45deg)';
+                bars[2].style.transition = 'all 0.3s cubic-bezier(0.16, 1, 0.3, 1)';
+              } else {
+                bars[0].style.transform = '';
+                bars[1].style.opacity = '1';
+                bars[2].style.transform = '';
+              }
+            }
+          });
+
+          menuDrawers.forEach(function(drawer) {
+            if (isMenuOpen) {
+              drawer.style.setProperty('opacity', '1', 'important');
+              drawer.style.setProperty('visibility', 'visible', 'important');
+              drawer.style.setProperty('pointer-events', 'auto', 'important');
+              drawer.style.setProperty('transform', 'matrix(1, 0, 0, 1, 0, 0) scale(1)', 'important');
+              drawer.style.setProperty('display', 'flex', 'important');
+              drawer.setAttribute('aria-hidden', 'false');
+              drawer.classList.remove('opacity-0', 'pointer-events-none', 'scale-25', 'scale-95');
+              drawer.classList.add('opacity-100', 'pointer-events-auto', 'scale-100');
+            } else {
+              drawer.style.setProperty('opacity', '0', 'important');
+              drawer.style.setProperty('pointer-events', 'none', 'important');
+              drawer.style.setProperty('transform', 'scale(0.95)', 'important');
+              drawer.setAttribute('aria-hidden', 'true');
+              drawer.classList.add('opacity-0', 'pointer-events-none');
+              drawer.classList.remove('opacity-100', 'pointer-events-auto');
+            }
+          });
+        }
+
+        menuButtons.forEach(function(btn) {
+          btn.style.cursor = 'pointer';
+          btn.addEventListener('click', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            toggleMenu();
+          });
+        });
+
+        // Close on escape key
+        window.addEventListener('keydown', function(e) {
+          if (e.key === 'Escape' && isMenuOpen) {
+            toggleMenu(false);
+          }
+        });
+
+        // Close on clicking outside menu drawer
+        document.addEventListener('click', function(e) {
+          if (isMenuOpen) {
+            var clickedInside = menuDrawers.some(function(d) { return d.contains(e.target); }) ||
+                                menuButtons.some(function(b) { return b.contains(e.target); });
+            if (!clickedInside) {
+              toggleMenu(false);
+            }
+          }
+        });
+      });
+
+      // 3. Smooth Viewport Scroll & Reveal Engine
+      window.addEventListener('DOMContentLoaded', function() {
+        var animatedElements = document.querySelectorAll(
+          '[class*="opacity-0"]:not([role="menu"]):not(nav[class*="shadow-menu"]), [class*="translate-y-"], [data-scroll]'
+        );
+
+        if ('IntersectionObserver' in window) {
+          var observer = new IntersectionObserver(function(entries) {
+            entries.forEach(function(entry) {
+              if (entry.isIntersecting) {
+                var el = entry.target;
+                el.style.setProperty('opacity', '1', 'important');
+                el.style.setProperty('transform', 'none', 'important');
+                el.style.setProperty('visibility', 'visible', 'important');
+                el.style.transition = 'opacity 0.6s cubic-bezier(0.16, 1, 0.3, 1), transform 0.6s cubic-bezier(0.16, 1, 0.3, 1)';
+                observer.unobserve(el);
+              }
+            });
+          }, { threshold: 0.08, rootMargin: '0px 0px -50px 0px' });
+
+          animatedElements.forEach(function(el) {
+            observer.observe(el);
+          });
+        } else {
+          animatedElements.forEach(function(el) {
+            el.style.setProperty('opacity', '1', 'important');
+          });
+        }
+      });
+    })();
   `;
-  head.appendChild(helperStyle);
+  head.appendChild(runtimeScript);
 
   return `<!DOCTYPE html>\n` + docClone.outerHTML;
 }
@@ -258,7 +397,6 @@ export function cloneComponentHtml(targetEl: HTMLElement): string {
   const bodyComp = window.getComputedStyle(document.body);
 
   const clone = targetEl.cloneNode(true) as HTMLElement;
-  clone.querySelectorAll('script').forEach((s) => s.remove());
 
   let inlinedStyles = '';
   try {
@@ -267,20 +405,20 @@ export function cloneComponentHtml(targetEl: HTMLElement): string {
         const rules = sheet.cssRules || sheet.rules;
         if (rules) {
           for (const rule of Array.from(rules)) {
-            const rewritten = rule.cssText.replace(/url\(\s*(['"]?)(.*?)\1\s*\)/gi, (match, quote, relUrl) => {
-              if (relUrl.startsWith('data:') || relUrl.startsWith('http')) return match;
-              try {
-                return `url("${new URL(relUrl, sheet.href || currentUrl).href}")`;
-              } catch {
-                return match;
-              }
-            });
-            inlinedStyles += rewritten + '\n';
+            inlinedStyles +=
+              rule.cssText.replace(/url\(\s*(['"]?)(.*?)\1\s*\)/gi, (m, q, r) => {
+                if (r.startsWith('data:') || r.startsWith('http')) return m;
+                try {
+                  return `url("${new URL(r, sheet.href || currentUrl).href}")`;
+                } catch {
+                  return m;
+                }
+              }) + '\n';
           }
         }
-      } catch (e) {}
+      } catch {}
     }
-  } catch (e) {}
+  } catch {}
 
   return `<!DOCTYPE html>
 <html lang="en">

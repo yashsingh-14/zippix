@@ -88,6 +88,7 @@ export type MessageType =
   | 'SCAN_PAGE'
   | 'PAGE_SCANNED'
   | 'GET_PAGE_DATA'
+  | 'GET_LIVE_CLONE'
   | 'INSPECTOR_STATE_UPDATE';
 
 export interface ExtensionMessage<T = any> {

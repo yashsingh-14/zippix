@@ -1,5 +1,6 @@
 import { ElementInspector } from './inspector';
 import { scanPageDesignTokens } from './extractor';
+import { cloneFullPageHtml } from './cloner';
 import type { ExtensionMessage, InspectedElement } from '../types';
 
 let inspector: ElementInspector | null = null;
@@ -44,6 +45,16 @@ chrome.runtime.onMessage.addListener((message: ExtensionMessage, _sender, sendRe
         sendResponse({ status: 'ok', tokens });
       } catch (err: any) {
         sendResponse({ status: 'error', error: err?.message || 'Failed to scan page' });
+      }
+      break;
+    }
+
+    case 'GET_LIVE_CLONE': {
+      try {
+        const html = cloneFullPageHtml();
+        sendResponse({ status: 'ok', html });
+      } catch (err: any) {
+        sendResponse({ status: 'error', error: err?.message || 'Failed to clone page' });
       }
       break;
     }
