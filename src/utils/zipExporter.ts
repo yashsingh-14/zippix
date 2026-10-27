@@ -1,0 +1,62 @@
+import JSZip from 'jszip';
+import type { ExtractedAsset, DesignTokens } from '../types';
+
+export async function exportAssetsZip(
+  assets: ExtractedAsset[],
+  tokens?: DesignTokens,
+  onProgress?: (percent: number) => void
+): Promise<Blob> {
+  const zip = new JSZip();
+
+  const svgFolder = zip.folder('svgs');
+  const imgFolder = zip.folder('images');
+
+  let processed = 0;
+  const total = assets.length + (tokens ? 1 : 0);
+
+  // Add SVGs
+  for (const asset of assets) {
+    if (asset.type === 'svg') {
+      const filename = `${asset.name.replace(/[^a-z0-9_-]/gi, '_') || 'icon'}.svg`;
+      const content = asset.content || '';
+      svgFolder?.file(filename, content);
+      processed++;
+      onProgress?.(Math.round((processed / total) * 100));
+    } else {
+      // Image or background image
+      try {
+        const response = await fetch(asset.url);
+        if (response.ok) {
+          const blob = await response.blob();
+          const ext = asset.format || 'png';
+          const filename = `${asset.name.replace(/[^a-z0-9_-]/gi, '_') || 'image'}.${ext}`;
+          imgFolder?.file(filename, blob);
+        }
+      } catch (e) {
+        console.warn(`Could not fetch asset: ${asset.url}`, e);
+      }
+      processed++;
+      onProgress?.(Math.round((processed / total) * 100));
+    }
+  }
+
+  // Include design tokens JSON if available
+  if (tokens) {
+    zip.file('design-tokens.json', JSON.stringify(tokens, null, 2));
+    processed++;
+    onProgress?.(100);
+  }
+
+  return await zip.generateAsync({ type: 'blob' });
+}
+
+export function triggerDownload(blob: Blob, filename: string) {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
