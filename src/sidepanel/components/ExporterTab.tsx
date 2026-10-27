@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Copy, Check, Download, Code2 } from 'lucide-react';
+import { Copy, Check, Download, Code2, Archive } from 'lucide-react';
 import type { DesignTokens, InspectedElement } from '../../types';
 import {
   generateStandaloneHtml,
@@ -9,7 +9,7 @@ import {
   generateCssVariables,
   generateDesignTokensJson,
 } from '../../utils/tokenGenerators';
-import { triggerDownload } from '../../utils/zipExporter';
+import { triggerDownload, exportCloneZip } from '../../utils/zipExporter';
 import { cloneFullPageHtml } from '../../content/cloner';
 
 interface ExporterTabProps {
@@ -22,6 +22,7 @@ export const ExporterTab: React.FC<ExporterTabProps> = ({ tokens, element }) => 
   const [copied, setCopied] = useState(false);
   const [liveCloneHtml, setLiveCloneHtml] = useState<string>(tokens.fullPageHtml || '');
   const [isCloning, setIsCloning] = useState(false);
+  const [isZipping, setIsZipping] = useState(false);
 
   // Directly clone the active tab DOM in real-time
   useEffect(() => {
@@ -116,6 +117,20 @@ export const ExporterTab: React.FC<ExporterTabProps> = ({ tokens, element }) => 
     triggerDownload(blob, filename);
   };
 
+  const handleDownloadZipPackage = async () => {
+    setIsZipping(true);
+    try {
+      const fullHtml = liveCloneHtml || tokens.fullPageHtml || '';
+      const zipBlob = await exportCloneZip(fullHtml, tokens.domain || 'page-clone');
+      const safeDomain = (tokens.domain || 'website').replace(/[^a-z0-9_-]/gi, '-');
+      triggerDownload(zipBlob, `${safeDomain}.full-page.Woblo.zip`);
+    } catch (e) {
+      console.error('Failed to create clone zip:', e);
+    } finally {
+      setIsZipping(false);
+    }
+  };
+
   const formats = [
     { id: 'html', label: '1:1 Page Clone (index.html)' },
     ...(element ? [{ id: 'component' as const, label: `Inspected <${element.tagName.toLowerCase()}>.html` }] : []),
@@ -167,12 +182,24 @@ export const ExporterTab: React.FC<ExporterTabProps> = ({ tokens, element }) => 
               <span>{copied ? 'Copied' : 'Copy'}</span>
             </button>
 
+            {format === 'html' && (
+              <button
+                onClick={handleDownloadZipPackage}
+                disabled={isZipping}
+                title="Download HTML + CSS in a Zip Package (Woblo Style)"
+                className="flex items-center gap-1 rounded bg-indigo-600/90 px-2 py-1 text-[11px] font-semibold text-white hover:bg-indigo-500 shadow-sm transition disabled:opacity-50"
+              >
+                <Archive className="h-3 w-3" />
+                <span>{isZipping ? 'Zipping...' : 'Zip Package'}</span>
+              </button>
+            )}
+
             <button
               onClick={handleDownload}
               className="flex items-center gap-1 rounded bg-cyan-600 px-2.5 py-1 text-[11px] font-semibold text-white hover:bg-cyan-500 shadow-sm transition"
             >
               <Download className="h-3 w-3" />
-              <span>Download</span>
+              <span>Download HTML</span>
             </button>
           </div>
         </div>

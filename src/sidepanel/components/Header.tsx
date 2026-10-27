@@ -1,5 +1,25 @@
 import React from 'react';
-import { Crosshair, RefreshCw, Layers } from 'lucide-react';
+import { Crosshair, RefreshCw } from 'lucide-react';
+
+export const ZippixLogo: React.FC<{ className?: string }> = ({ className = 'h-8 w-8' }) => (
+  <svg viewBox="0 0 128 128" className={className} xmlns="http://www.w3.org/2000/svg">
+    <defs>
+      <linearGradient id="zippixLogoGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+        <stop offset="0%" stopColor="#06b6d4" />
+        <stop offset="50%" stopColor="#6366f1" />
+        <stop offset="100%" stopColor="#a855f7" />
+      </linearGradient>
+      <filter id="zippixGlow" x="-20%" y="-20%" width="140%" height="140%">
+        <feDropShadow dx="0" dy="4" stdDeviation="6" floodColor="#06b6d4" floodOpacity="0.4" />
+      </filter>
+    </defs>
+    <rect x="8" y="8" width="112" height="112" rx="28" fill="#0f172a" stroke="url(#zippixLogoGrad)" strokeWidth="4" filter="url(#zippixGlow)" />
+    <polygon points="64,26 96,44 64,62 32,44" fill="url(#zippixLogoGrad)" opacity="0.95" />
+    <polygon points="64,48 96,66 64,84 32,66" fill="#38bdf8" opacity="0.8" />
+    <polygon points="64,70 96,88 64,106 32,88" fill="#818cf8" opacity="0.9" />
+    <circle cx="64" cy="44" r="3.5" fill="#ffffff" />
+  </svg>
+);
 
 interface HeaderProps {
   domain: string;
@@ -19,9 +39,7 @@ export const Header: React.FC<HeaderProps> = ({
   return (
     <header className="sticky top-0 z-50 flex items-center justify-between border-b border-slate-800/80 bg-slate-950/90 px-4 py-3 backdrop-blur-md">
       <div className="flex items-center gap-2.5">
-        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-tr from-cyan-500 to-indigo-600 shadow-md shadow-cyan-500/20">
-          <Layers className="h-4 w-4 text-white" />
-        </div>
+        <ZippixLogo className="h-8 w-8 drop-shadow-md" />
         <div>
           <div className="flex items-center gap-1.5">
             <span className="text-sm font-bold tracking-tight text-white">Zippix</span>

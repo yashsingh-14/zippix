@@ -1,7 +1,9 @@
 /**
  * Zippix Ultimate 1:1 Pixel-Perfect Interactive Page Cloner
  * Replicates complete website page with 100% fidelity:
- * - Hamburger menu interactive open/close animations
+ * - Hamburger menu interactive open/close animations with rotating 'X'
+ * - Marquee infinite scrolling continuous motion effect
+ * - Correct video positioning without breaking Tailwind centering (-translate-x-1/2 -translate-y-1/2)
  * - Scroll animations, parallax & viewport reveal effects
  * - 3D/2D Canvas snapshots (Three.js/WebGL)
  * - HTML5 background videos (Vimeo, MP4, HLS) with auto-play
@@ -109,6 +111,14 @@ export function cloneFullPageHtml(): string {
     clonedV.setAttribute('loop', '');
     clonedV.setAttribute('muted', '');
     clonedV.setAttribute('playsinline', '');
+
+    // If this is the active hero video, ensure it is visible and positioned
+    if (clonedV.id.includes('baklawa') || clonedV.classList.contains('mask-ingredient-video')) {
+      if (!clonedV.classList.contains('hidden') || clonedV.id.includes('baklawa')) {
+        clonedV.classList.remove('hidden', 'opacity-0');
+        clonedV.style.setProperty('opacity', '1', 'important');
+      }
+    }
   });
 
   // 9. Fix all <img> and <picture> sources with absolute URLs & eager loading
@@ -174,7 +184,9 @@ export function cloneFullPageHtml(): string {
     }
   });
 
-  // 10. Sync live computed styles, background-images & transforms
+  // 10. Sync live computed styles CAREFULLY
+  // CRITICAL: NEVER overwrite class-based transforms (e.g. -translate-x-1/2, marquee, rotate)
+  // because inline matrix() destroys Tailwind centering and video alignment!
   const liveElements = document.querySelectorAll('*');
   const clonedElements = docClone.querySelectorAll('*');
   const count = Math.min(liveElements.length, clonedElements.length);
@@ -203,7 +215,17 @@ export function cloneFullPageHtml(): string {
           cloned.style.backgroundRepeat = comp.backgroundRepeat;
         }
 
-        if (comp.transform && comp.transform !== 'none' && !cloned.style.transform) {
+        // Avoid stamping momentary matrix() transforms on videos, centered elements, or marquee tracks!
+        const cls = (cloned.getAttribute('class') || '').toLowerCase();
+        const hasTransformClasses =
+          cls.includes('translate') ||
+          cls.includes('marquee') ||
+          cls.includes('rotate') ||
+          cls.includes('scale') ||
+          cls.includes('animate') ||
+          cloned.tagName === 'VIDEO';
+
+        if (comp.transform && comp.transform !== 'none' && !hasTransformClasses && !cloned.style.transform) {
           cloned.style.transform = comp.transform;
           cloned.style.transformOrigin = comp.transformOrigin;
         }
@@ -232,19 +254,54 @@ export function cloneFullPageHtml(): string {
     } catch {}
   }
 
+  // Add Essential Fixes: Marquee Animation, Header Visibility, and Video Centering
+  const coreOverrides = `
+    /* Marquee Animation Guarantee */
+    @keyframes zippixMarquee {
+      0% { transform: translateX(0%); }
+      100% { transform: translateX(var(--marquee-shift, -50%)); }
+    }
+    @-webkit-keyframes zippixMarquee {
+      0% { -webkit-transform: translateX(0%); }
+      100% { -webkit-transform: translateX(var(--marquee-shift, -50%)); }
+    }
+    [class*="animate-marquee"], .animate-marquee {
+      -webkit-animation: zippixMarquee var(--marquee-duration, 16s) linear infinite !important;
+      animation: zippixMarquee var(--marquee-duration, 16s) linear infinite !important;
+      display: flex !important;
+      will-change: transform !important;
+    }
+
+    /* Header & Navigation Visibility Guarantee */
+    header, [class*="header"] {
+      opacity: 1 !important;
+      pointer-events: auto !important;
+      visibility: visible !important;
+    }
+
+    /* Video Positioning Guarantee */
+    video.mask-ingredient-video {
+      position: absolute !important;
+      left: 50% !important;
+      top: 50% !important;
+      transform: translate(-50%, -50%) !important;
+      object-fit: cover !important;
+    }
+
+    /* Remove full-page blocking loaders */
+    .fixed.z-50.bg-dark-brown {
+      display: none !important;
+    }
+  `;
+
   if (inlinedStyles) {
     const styleEl = document.createElement('style');
     styleEl.setAttribute('data-zippix', 'master-cloned-styles');
-    styleEl.textContent = inlinedStyles;
+    styleEl.textContent = inlinedStyles + '\n' + coreOverrides;
     head.appendChild(styleEl);
   }
 
   // 12. Master Interactive & Animation Runtime Engine
-  // Guarantees:
-  // - Hamburger menu opening & closing animations with rotating cross
-  // - Scroll reveal animations (smooth fade-in & transform)
-  // - HTML5 Video auto-play on user scroll/click
-  // - Marquee & CSS animation continuity
   const runtimeScript = document.createElement('script');
   runtimeScript.setAttribute('data-zippix', 'master-runtime-engine');
   runtimeScript.textContent = `
@@ -265,12 +322,18 @@ export function cloneFullPageHtml(): string {
 
       // 2. Interactive Hamburger Menu Engine
       window.addEventListener('DOMContentLoaded', function() {
-        // Find hamburger buttons (by aria-label, class, or icon bars)
+        // Ensure header is visible
+        var headers = document.querySelectorAll('header');
+        headers.forEach(function(h) {
+          h.style.setProperty('opacity', '1', 'important');
+          h.style.setProperty('pointer-events', 'auto', 'important');
+        });
+
+        // Find hamburger buttons
         var menuButtons = Array.from(document.querySelectorAll(
           'button[aria-label*="menu" i], button[aria-label*="Open" i], button:has(.border-current), [class*="hamburger"], [class*="menu-btn"], [class*="nav-toggle"]'
         ));
 
-        // If not found by query, search buttons containing 2 or 3 bar dividers
         if (menuButtons.length === 0) {
           document.querySelectorAll('button').forEach(function(btn) {
             if (btn.querySelectorAll('div, span').length >= 2 && btn.clientWidth <= 64) {
@@ -293,16 +356,16 @@ export function cloneFullPageHtml(): string {
             var bars = btn.querySelectorAll('div, span');
             if (bars.length >= 3) {
               if (isMenuOpen) {
-                bars[0].style.transform = 'translate(-50%, -50%) rotate(45deg)';
-                bars[0].style.transition = 'all 0.3s cubic-bezier(0.16, 1, 0.3, 1)';
-                bars[1].style.opacity = '0';
-                bars[1].style.transition = 'opacity 0.2s ease';
-                bars[2].style.transform = 'translate(-50%, -50%) rotate(-45deg)';
-                bars[2].style.transition = 'all 0.3s cubic-bezier(0.16, 1, 0.3, 1)';
+                bars[0].style.setProperty('transform', 'translate(-50%, -50%) rotate(45deg)', 'important');
+                bars[0].style.setProperty('transition', 'all 0.3s cubic-bezier(0.16, 1, 0.3, 1)', 'important');
+                bars[1].style.setProperty('opacity', '0', 'important');
+                bars[1].style.setProperty('transition', 'opacity 0.2s ease', 'important');
+                bars[2].style.setProperty('transform', 'translate(-50%, -50%) rotate(-45deg)', 'important');
+                bars[2].style.setProperty('transition', 'all 0.3s cubic-bezier(0.16, 1, 0.3, 1)', 'important');
               } else {
-                bars[0].style.transform = '';
-                bars[1].style.opacity = '1';
-                bars[2].style.transform = '';
+                bars[0].style.setProperty('transform', 'translate(-50%, -50%) translateY(-0.8rem)', 'important');
+                bars[1].style.setProperty('opacity', '1', 'important');
+                bars[2].style.setProperty('transform', 'translate(-50%, -50%) translateY(0.8rem)', 'important');
               }
             }
           });
@@ -312,15 +375,23 @@ export function cloneFullPageHtml(): string {
               drawer.style.setProperty('opacity', '1', 'important');
               drawer.style.setProperty('visibility', 'visible', 'important');
               drawer.style.setProperty('pointer-events', 'auto', 'important');
-              drawer.style.setProperty('transform', 'matrix(1, 0, 0, 1, 0, 0) scale(1)', 'important');
+              drawer.style.setProperty('transform', 'scale(1)', 'important');
               drawer.style.setProperty('display', 'flex', 'important');
+              drawer.style.setProperty('z-index', '999999', 'important');
               drawer.setAttribute('aria-hidden', 'false');
               drawer.classList.remove('opacity-0', 'pointer-events-none', 'scale-25', 'scale-95');
               drawer.classList.add('opacity-100', 'pointer-events-auto', 'scale-100');
+
+              // Animate inner drawer items
+              drawer.querySelectorAll('div[class*="transition-transform"], li').forEach(function(item) {
+                item.style.setProperty('opacity', '1', 'important');
+                item.style.setProperty('transform', 'none', 'important');
+                item.style.setProperty('pointer-events', 'auto', 'important');
+              });
             } else {
               drawer.style.setProperty('opacity', '0', 'important');
               drawer.style.setProperty('pointer-events', 'none', 'important');
-              drawer.style.setProperty('transform', 'scale(0.95)', 'important');
+              drawer.style.setProperty('transform', 'scale(0.25)', 'important');
               drawer.setAttribute('aria-hidden', 'true');
               drawer.classList.add('opacity-0', 'pointer-events-none');
               drawer.classList.remove('opacity-100', 'pointer-events-auto');
@@ -329,7 +400,9 @@ export function cloneFullPageHtml(): string {
         }
 
         menuButtons.forEach(function(btn) {
-          btn.style.cursor = 'pointer';
+          btn.style.setProperty('cursor', 'pointer', 'important');
+          btn.style.setProperty('pointer-events', 'auto', 'important');
+          btn.style.setProperty('z-index', '999999', 'important');
           btn.addEventListener('click', function(e) {
             e.preventDefault();
             e.stopPropagation();
@@ -359,7 +432,7 @@ export function cloneFullPageHtml(): string {
       // 3. Smooth Viewport Scroll & Reveal Engine
       window.addEventListener('DOMContentLoaded', function() {
         var animatedElements = document.querySelectorAll(
-          '[class*="opacity-0"]:not([role="menu"]):not(nav[class*="shadow-menu"]), [class*="translate-y-"], [data-scroll]'
+          '[class*="opacity-0"]:not([role="menu"]):not(nav[class*="shadow-menu"]):not(header), [class*="translate-y-"], [data-scroll]'
         );
 
         if ('IntersectionObserver' in window) {

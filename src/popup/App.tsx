@@ -1,5 +1,25 @@
 import React, { useState, useEffect } from 'react';
-import { Layers, Sidebar, Crosshair, ArrowRight } from 'lucide-react';
+import { Sidebar, Crosshair, ArrowRight } from 'lucide-react';
+
+const ZippixLogo: React.FC<{ className?: string }> = ({ className = 'h-8 w-8' }) => (
+  <svg viewBox="0 0 128 128" className={className} xmlns="http://www.w3.org/2000/svg">
+    <defs>
+      <linearGradient id="popGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+        <stop offset="0%" stopColor="#06b6d4" />
+        <stop offset="50%" stopColor="#6366f1" />
+        <stop offset="100%" stopColor="#a855f7" />
+      </linearGradient>
+      <filter id="popGlow" x="-20%" y="-20%" width="140%" height="140%">
+        <feDropShadow dx="0" dy="4" stdDeviation="6" floodColor="#06b6d4" floodOpacity="0.4" />
+      </filter>
+    </defs>
+    <rect x="8" y="8" width="112" height="112" rx="28" fill="#0f172a" stroke="url(#popGrad)" strokeWidth="4" filter="url(#popGlow)" />
+    <polygon points="64,26 96,44 64,62 32,44" fill="url(#popGrad)" opacity="0.95" />
+    <polygon points="64,48 96,66 64,84 32,66" fill="#38bdf8" opacity="0.8" />
+    <polygon points="64,70 96,88 64,106 32,88" fill="#818cf8" opacity="0.9" />
+    <circle cx="64" cy="44" r="3.5" fill="#ffffff" />
+  </svg>
+);
 
 export const App: React.FC = () => {
   const [domain, setDomain] = useState('');
@@ -38,9 +58,7 @@ export const App: React.FC = () => {
   return (
     <div className="w-[300px] bg-[#0b0f19] p-4 text-slate-100 font-sans select-none">
       <div className="flex items-center gap-2.5 pb-3 border-b border-slate-800">
-        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-tr from-cyan-500 to-indigo-600 shadow-md shadow-cyan-500/20">
-          <Layers className="h-4 w-4 text-white" />
-        </div>
+        <ZippixLogo className="h-8 w-8 drop-shadow-md" />
         <div>
           <div className="flex items-center gap-1.5">
             <span className="text-sm font-bold text-white">Zippix</span>

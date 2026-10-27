@@ -1,6 +1,43 @@
 import JSZip from 'jszip';
 import type { ExtractedAsset, DesignTokens } from '../types';
 
+export async function exportCloneZip(
+  fullHtml: string,
+  domain: string = 'website'
+): Promise<Blob> {
+  const zip = new JSZip();
+
+  // Extract master styles if present to create separate styles.css
+  let html = fullHtml;
+  let css = '';
+
+  const styleMatch = html.match(/<style data-zippix="master-cloned-styles">([\s\S]*?)<\/style>/);
+  if (styleMatch) {
+    css = styleMatch[1];
+    html = html.replace(
+      styleMatch[0],
+      '<link rel="stylesheet" href="styles.css">\n'
+    );
+  } else {
+    // Collect all <style> tags
+    const styles: string[] = [];
+    html = html.replace(/<style[^>]*>([\s\S]*?)<\/style>/gi, (_, content) => {
+      styles.push(content);
+      return '';
+    });
+    css = styles.join('\n\n');
+    html = html.replace('</head>', '<link rel="stylesheet" href="styles.css">\n</head>');
+  }
+
+  const folderName = domain.replace(/[^a-z0-9_-]/gi, '-').toLowerCase() || 'website-clone';
+  const folder = zip.folder(folderName) || zip;
+
+  folder.file('index.html', html);
+  folder.file('styles.css', css);
+
+  return await zip.generateAsync({ type: 'blob' });
+}
+
 export async function exportAssetsZip(
   assets: ExtractedAsset[],
   tokens?: DesignTokens,
@@ -23,7 +60,6 @@ export async function exportAssetsZip(
       processed++;
       onProgress?.(Math.round((processed / total) * 100));
     } else {
-      // Image or background image
       try {
         const response = await fetch(asset.url);
         if (response.ok) {
@@ -40,7 +76,6 @@ export async function exportAssetsZip(
     }
   }
 
-  // Include design tokens JSON if available
   if (tokens) {
     zip.file('design-tokens.json', JSON.stringify(tokens, null, 2));
     processed++;
