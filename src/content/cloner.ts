@@ -84,6 +84,12 @@ export function cloneFullPageHtml(): string {
         s.setAttribute('src', new URL(src, currentUrl).href);
         s.setAttribute('crossorigin', 'anonymous');
       } catch {}
+    } else {
+      // Remove inline Next.js Flight/RSC streaming scripts that crash without a Next.js server
+      const text = s.textContent || '';
+      if (text.includes('__next_f') || text.includes('self.__next_f')) {
+        s.remove();
+      }
     }
   });
 
