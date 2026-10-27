@@ -39,7 +39,7 @@ export function scanPageDesignTokens(): DesignTokens {
     {
       acceptNode(node) {
         const el = node as HTMLElement;
-        if (el.id === 'woblo-inspector-root' || el.tagName === 'SCRIPT' || el.tagName === 'STYLE') {
+        if (el.id === 'zippix-inspector-root' || el.tagName === 'SCRIPT' || el.tagName === 'STYLE') {
           return NodeFilter.FILTER_REJECT;
         }
         return NodeFilter.FILTER_ACCEPT;

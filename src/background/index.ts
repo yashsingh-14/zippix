@@ -1,7 +1,7 @@
-// Woblo Pro - Background Service Worker (Manifest V3)
+// Zippix - Background Service Worker (Manifest V3)
 
 chrome.runtime.onInstalled.addListener(() => {
-  console.log('Woblo Pro extension installed successfully.');
+  console.log('Zippix extension installed successfully.');
 
   // Set side panel to open upon action click
   if (chrome.sidePanel && chrome.sidePanel.setPanelBehavior) {

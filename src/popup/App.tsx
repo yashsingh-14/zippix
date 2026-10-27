@@ -43,7 +43,7 @@ export const App: React.FC = () => {
         </div>
         <div>
           <div className="flex items-center gap-1.5">
-            <span className="text-sm font-bold text-white">Woblo Pro</span>
+            <span className="text-sm font-bold text-white">Zippix</span>
             <span className="rounded bg-cyan-500/10 px-1.5 py-0.2 text-[9px] font-semibold text-cyan-400 border border-cyan-500/20">
               PRO
             </span>

@@ -1,11 +1,11 @@
-# Woblo Pro ⚡
+# Zippix ⚡
 > The Ultimate Web Design System & Asset Inspector for Chrome (Manifest V3)
 
-Extract design tokens, inspect live DOM elements, download all visual assets (SVGs, WebP, images), and generate production-ready **Tailwind CSS**, **CSS Variables**, and **AI Component Prompts** (Claude / ChatGPT / Cursor) in one click.
+Extract design tokens, inspect live DOM elements, download visual assets (SVGs, WebP, images), and generate production-ready **Tailwind CSS**, **CSS Variables**, and **AI Component Prompts** (Claude / ChatGPT / Cursor) in one click.
 
 ---
 
-## ✨ Features that make Woblo Pro superior
+## ✨ Features that make Zippix superior
 
 | Feature | Description |
 | :--- | :--- |
@@ -24,7 +24,7 @@ Extract design tokens, inspect live DOM elements, download all visual assets (SV
 - **Runtime Target**: Chrome Extension Manifest V3 (Future-proof Service Worker + Declarative APIs)
 - **UI Framework**: React 19 + TypeScript
 - **Styling**: Tailwind CSS v4 (Glassmorphic dark design system)
-- **Icons**: Lucide React
+- **Icons**: Lucide React + Custom Prism layered geometric branding
 - **Color Engine**: `colord` with WCAG A11y & color naming plugins
 - **Asset Packaging**: `jszip` client-side archiver
 - **Bundler**: Vite 8 with multi-entry compilation:
@@ -39,7 +39,7 @@ Extract design tokens, inspect live DOM elements, download all visual assets (SV
 ### 1. Build the Extension
 ```bash
 # Clone or navigate to the directory
-cd woblo-pro
+cd zippix
 
 # Install dependencies (if not already installed)
 npm install
@@ -52,15 +52,15 @@ npm run build
 1. Open Chrome and navigate to `chrome://extensions/`
 2. Enable **Developer mode** toggle in the top-right corner.
 3. Click the **Load unpacked** button.
-4. Select the `dist/` folder inside `woblo-pro` (e.g. `C:\Users\rj\Desktop\woblo-pro\dist`).
-5. Woblo Pro is now installed! Pin it to your toolbar and click its icon on any website.
+4. Select the `dist/` folder inside `zippix` (e.g. `C:\Users\rj\Desktop\zippix\dist` or `C:\Users\rj\Desktop\woblo-pro\dist`).
+5. Zippix is now installed! Pin it to your toolbar and click its icon on any website.
 
 ---
 
 ## 📁 Repository Structure
 
 ```text
-woblo-pro/
+zippix/
 ├── dist/                      # Production unpacked extension ready for Chrome
 │   ├── manifest.json          # Chrome Manifest V3 configuration
 │   ├── background.js          # Service worker

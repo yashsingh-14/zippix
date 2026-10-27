@@ -46,7 +46,7 @@ export class ElementInspector {
     if (this.host) return;
 
     this.host = document.createElement('div');
-    this.host.id = 'woblo-inspector-root';
+    this.host.id = 'zippix-inspector-root';
     this.host.style.position = 'fixed';
     this.host.style.top = '0';
     this.host.style.left = '0';
@@ -60,7 +60,7 @@ export class ElementInspector {
     // Styles inside shadow DOM
     const style = document.createElement('style');
     style.textContent = `
-      .woblo-highlight {
+      .zippix-highlight {
         position: fixed;
         border: 2px solid #06b6d4;
         background: rgba(6, 182, 212, 0.12);
@@ -70,7 +70,7 @@ export class ElementInspector {
         pointer-events: none;
         z-index: 2147483647;
       }
-      .woblo-tooltip {
+      .zippix-tooltip {
         position: fixed;
         background: #090d16;
         color: #f1f5f9;
@@ -88,20 +88,20 @@ export class ElementInspector {
         pointer-events: none;
         z-index: 2147483647;
       }
-      .woblo-tag {
+      .zippix-tag {
         color: #38bdf8;
         font-weight: 700;
       }
-      .woblo-dim {
+      .zippix-dim {
         color: #94a3b8;
       }
     `;
 
     this.overlay = document.createElement('div');
-    this.overlay.className = 'woblo-highlight';
+    this.overlay.className = 'zippix-highlight';
 
     this.tooltip = document.createElement('div');
-    this.tooltip.className = 'woblo-tooltip';
+    this.tooltip.className = 'zippix-tooltip';
 
     this.shadow.appendChild(style);
     this.shadow.appendChild(this.overlay);
@@ -142,8 +142,8 @@ export class ElementInspector {
       const h = Math.round(rect.height);
 
       this.tooltip.innerHTML = `
-        <span class="woblo-tag">&lt;${target.tagName.toLowerCase()}${classes}&gt;</span>
-        <span class="woblo-dim">${w} × ${h}px</span>
+        <span class="zippix-tag">&lt;${target.tagName.toLowerCase()}${classes}&gt;</span>
+        <span class="zippix-dim">${w} × ${h}px</span>
       `;
     }
   }

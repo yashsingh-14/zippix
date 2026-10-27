@@ -8,7 +8,7 @@ const rootDir = path.resolve(import.meta.dirname, '..');
 const distDir = path.resolve(rootDir, 'dist');
 
 async function buildAll() {
-  console.log('🚀 Starting Woblo Pro Build...\n');
+  console.log('🚀 Starting Zippix Build...\n');
 
   // Step 1: Clean dist
   if (fs.existsSync(distDir)) {

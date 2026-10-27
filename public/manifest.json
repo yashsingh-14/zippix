@@ -1,6 +1,6 @@
 {
   "manifest_version": 3,
-  "name": "Woblo Pro — Web Design & Asset Inspector",
+  "name": "Zippix — Web Design & Asset Inspector",
   "version": "1.0.0",
   "description": "1-Click Design System, Colors, Fonts, SVGs & Asset Extractor. Generates Tailwind config, CSS tokens & AI component prompts.",
   "icons": {
@@ -19,6 +19,7 @@
     "<all_urls>"
   ],
   "action": {
+    "default_title": "Zippix",
     "default_popup": "popup.html",
     "default_icon": {
       "16": "icons/icon16.png",
