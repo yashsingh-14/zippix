@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
-import { Crosshair, Sparkles, Copy, Check, Code, Box, Palette } from 'lucide-react';
+import { Crosshair, Sparkles, Copy, Check, Box, Palette, Download } from 'lucide-react';
 import type { InspectedElement } from '../../types';
+import { generateComponentHtml } from '../../utils/tokenGenerators';
+import { triggerDownload } from '../../utils/zipExporter';
 
 interface InspectorTabProps {
   element: InspectedElement | null;
@@ -154,14 +156,29 @@ export const InspectorTab: React.FC<InspectorTabProps> = ({
       {/* Raw HTML */}
       <div className="rounded-lg border border-slate-800 bg-slate-900/40 p-3">
         <div className="mb-1.5 flex items-center justify-between">
-          <span className="text-xs font-semibold text-slate-300">HTML Code</span>
-          <button
-            onClick={() => copyToClipboard(element.cleanHtml, 'html')}
-            className="flex items-center gap-1 text-[10px] text-cyan-400 hover:text-cyan-300 font-medium"
-          >
-            {copiedType === 'html' ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
-            <span>{copiedType === 'html' ? 'Copied' : 'Copy'}</span>
-          </button>
+          <span className="text-xs font-semibold text-slate-300">HTML & Live Preview</span>
+          <div className="flex items-center gap-1.5">
+            <button
+              onClick={() => copyToClipboard(element.cleanHtml, 'html')}
+              className="flex items-center gap-1 text-[10px] text-cyan-400 hover:text-cyan-300 font-medium bg-slate-800 px-2 py-1 rounded transition"
+            >
+              {copiedType === 'html' ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
+              <span>{copiedType === 'html' ? 'Copied' : 'Copy'}</span>
+            </button>
+
+            <button
+              onClick={() => {
+                const html = generateComponentHtml(element);
+                const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
+                triggerDownload(blob, `${element.tagName.toLowerCase()}-preview.html`);
+              }}
+              title="Download standalone HTML file that opens live in Chrome"
+              className="flex items-center gap-1 text-[10px] text-slate-200 hover:text-white font-medium bg-cyan-600/80 hover:bg-cyan-600 px-2 py-1 rounded transition"
+            >
+              <Download className="h-3 w-3" />
+              <span>Download .html</span>
+            </button>
+          </div>
         </div>
         <pre className="max-h-36 overflow-auto rounded bg-slate-950 p-2 font-mono text-[10px] text-slate-300 border border-slate-800">
           {element.cleanHtml}

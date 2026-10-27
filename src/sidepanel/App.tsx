@@ -255,7 +255,7 @@ export const App: React.FC = () => {
             )}
 
             {activeTab === 'export' && tokens && (
-              <ExporterTab tokens={tokens} />
+              <ExporterTab tokens={tokens} element={inspectedElement} />
             )}
           </>
         )}

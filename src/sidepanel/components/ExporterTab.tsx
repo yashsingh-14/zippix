@@ -2,23 +2,33 @@ import React, { useState } from 'react';
 import { Copy, Check, Download, Code2, Sparkles } from 'lucide-react';
 import type { DesignTokens } from '../../types';
 import {
+  generateStandaloneHtml,
+  generateComponentHtml,
   generateTailwindV3,
   generateTailwindV4,
   generateCssVariables,
   generateDesignTokensJson,
 } from '../../utils/tokenGenerators';
 import { triggerDownload } from '../../utils/zipExporter';
+import type { InspectedElement } from '../../types';
 
 interface ExporterTabProps {
   tokens: DesignTokens;
+  element?: InspectedElement | null;
 }
 
-export const ExporterTab: React.FC<ExporterTabProps> = ({ tokens }) => {
-  const [format, setFormat] = useState<'tailwind4' | 'tailwind3' | 'css' | 'json'>('tailwind4');
+export const ExporterTab: React.FC<ExporterTabProps> = ({ tokens, element }) => {
+  const [format, setFormat] = useState<'html' | 'tailwind4' | 'tailwind3' | 'css' | 'json'>('html');
   const [copied, setCopied] = useState(false);
 
   const getExportCode = () => {
     switch (format) {
+      case 'html':
+        return {
+          code: generateStandaloneHtml(tokens, element),
+          filename: 'index.html',
+          mime: 'text/html',
+        };
       case 'tailwind4':
         return {
           code: generateTailwindV4(tokens),
@@ -60,6 +70,7 @@ export const ExporterTab: React.FC<ExporterTabProps> = ({ tokens }) => {
   };
 
   const formats = [
+    { id: 'html', label: 'Live HTML + CSS (index.html)' },
     { id: 'tailwind4', label: 'Tailwind v4 (@theme)' },
     { id: 'tailwind3', label: 'Tailwind v3' },
     { id: 'css', label: 'CSS Variables' },
