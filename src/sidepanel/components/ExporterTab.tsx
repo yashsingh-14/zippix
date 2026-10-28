@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Copy, Check, Download, Archive, FileCode2, Loader2, Sparkles, CheckCircle2 } from 'lucide-react';
+import { Copy, Check, Download, Archive, FileCode2, Loader2, Sparkles, CheckCircle2, Layers, Cpu } from 'lucide-react';
 import type { DesignTokens, InspectedElement } from '../../types';
 import {
   generateStandaloneHtml,
@@ -117,7 +117,7 @@ export const ExporterTab: React.FC<ExporterTabProps> = ({ tokens, element }) => 
     setTimeout(() => setDownloadSuccess(null), 3000);
   };
 
-  // 1-Click ZIP Package Download (Woblo format)
+  // 1-Click ZIP Package Download (Exact Woblo package structure)
   const handleDownloadZipPackage = async () => {
     setIsZipping(true);
     try {
@@ -125,7 +125,6 @@ export const ExporterTab: React.FC<ExporterTabProps> = ({ tokens, element }) => 
       if (tab?.id && tab.url && !tab.url.startsWith('chrome://')) {
         chrome.tabs.sendMessage(tab.id, { type: 'DOWNLOAD_PAGE_ZIP' }, async (response) => {
           if (chrome.runtime.lastError || response?.status !== 'ok') {
-            // Fallback export
             const fullHtml = liveCloneHtml || tokens.fullPageHtml || '';
             const zipBlob = await exportCloneZip(fullHtml, tokens.domain || 'page-clone');
             const safeDomain = (tokens.domain || 'website').replace(/[^a-z0-9_-]/gi, '-');
@@ -148,7 +147,7 @@ export const ExporterTab: React.FC<ExporterTabProps> = ({ tokens, element }) => 
     }
   };
 
-  // 1-Click Standalone HTML Download (Inlined CSS & base64 images)
+  // 1-Click Standalone HTML Download (Inlined styles & base64 images)
   const handleDownloadStandaloneHtml = async () => {
     setIsDownloadingHtml(true);
     try {
@@ -191,64 +190,73 @@ export const ExporterTab: React.FC<ExporterTabProps> = ({ tokens, element }) => 
   ] as const;
 
   return (
-    <div className="space-y-4 pb-6">
-      {/* Success Notification Banner */}
+    <div className="space-y-3.5 pb-4">
+      {/* Toast Alert */}
       {downloadSuccess && (
-        <div className="flex items-center gap-2 rounded-lg bg-emerald-500/10 border border-emerald-500/20 px-3 py-2 text-xs font-medium text-emerald-400 animate-in fade-in">
-          <CheckCircle2 className="h-4 w-4 shrink-0" />
+        <div className="flex h-8 items-center gap-2 rounded-lg bg-emerald-500/10 border border-emerald-500/20 px-3 text-[11px] font-medium text-emerald-400">
+          <CheckCircle2 className="h-3.5 w-3.5 shrink-0" />
           <span>{downloadSuccess}</span>
         </div>
       )}
 
-      {/* HERO SECTION: 1-Click 1:1 Page Clone Box (Woblo Equivalent) */}
-      <div className="rounded-xl border border-white/[0.08] bg-[#1c1b1a] p-3.5 space-y-3">
+      {/* HERO CARD: 1-Click Universal Page Clone */}
+      <div className="rounded-xl border border-white/[0.08] bg-[#1c1b1a] p-3.5 space-y-3 shadow-xs">
+        {/* Header Row */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-1.5">
-            <Sparkles className="h-4 w-4 text-emerald-400 shrink-0" />
-            <span className="text-[13px] font-semibold tracking-tight text-[#faf9f5]">1:1 Full Page Clone</span>
+            <Sparkles className="h-3.5 w-3.5 text-emerald-400 shrink-0" />
+            <span className="text-[12.5px] font-bold tracking-tight text-[#faf9f5]">
+              Full Page Clone
+            </span>
           </div>
-          <span className="flex items-center gap-1.5 text-[10px] font-mono text-[#a8a29e]">
+          <div className="flex items-center gap-1.5 rounded-full bg-white/[0.05] border border-white/[0.07] px-2 py-0.5 text-[9.5px] font-mono text-[#a8a29e]">
             {isCloning ? (
               <>
                 <Loader2 className="h-2.5 w-2.5 animate-spin text-amber-400" />
-                <span>Capturing...</span>
+                <span>Capturing DOM...</span>
               </>
             ) : (
               <>
-                <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 inline-block"></span>
-                <span>Ready</span>
+                <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 inline-block animate-pulse"></span>
+                <span>100% Fidelity Ready</span>
               </>
             )}
-          </span>
+          </div>
         </div>
 
         <p className="text-[11px] leading-relaxed text-[#a8a29e]">
-          Clones the active page with consolidated CSS, inlined base64 images, centered videos, and interactive hamburger animations.
+          Exports the complete webpage with unified styles, offline base64 assets, auto-playing videos, and interactive animations.
         </p>
 
-        {/* Action Buttons Grid */}
-        <div className="grid grid-cols-1 gap-2 pt-1">
-          {/* ZIP Package Button (Exact Woblo Equivalent) */}
+        {/* Feature Badges Row */}
+        <div className="flex items-center gap-1.5 text-[10px] font-mono text-[#78716c]">
+          <span className="rounded bg-white/[0.04] px-1.5 py-0.5">Unified CSS</span>
+          <span>•</span>
+          <span className="rounded bg-white/[0.04] px-1.5 py-0.5">Base64 Images</span>
+          <span>•</span>
+          <span className="rounded bg-white/[0.04] px-1.5 py-0.5">Interactive Scripts</span>
+        </div>
+
+        {/* Action Buttons (Height 40px each, perfectly balanced) */}
+        <div className="space-y-2 pt-1">
+          {/* Primary ZIP Button */}
           <button
             onClick={handleDownloadZipPackage}
             disabled={isZipping || isCloning}
-            className="group relative flex items-center justify-between rounded-lg bg-[#242220] hover:bg-[#2c2a28] border border-white/[0.1] px-3.5 py-2.5 transition-all text-start disabled:opacity-50"
+            className="flex h-10 w-full items-center justify-between rounded-lg bg-[#faf9f5] hover:bg-[#ffffff] active:scale-[0.99] text-[#141413] px-3 font-semibold text-[11.5px] shadow-sm transition-all duration-150 disabled:opacity-50"
           >
-            <div className="flex items-center gap-2.5 min-w-0">
-              <div className="flex h-7 w-7 items-center justify-center rounded-md bg-white/[0.08] text-[#faf9f5]">
-                {isZipping ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Archive className="h-3.5 w-3.5" />}
-              </div>
-              <div className="min-w-0">
-                <div className="text-[12px] font-semibold text-[#faf9f5]">
-                  {isZipping ? 'Creating ZIP Package...' : 'Download ZIP Package'}
-                </div>
-                <div className="text-[10px] text-[#a8a29e] truncate">
-                  index.html + styles.css (Woblo format)
-                </div>
-              </div>
+            <div className="flex items-center gap-2 min-w-0">
+              {isZipping ? (
+                <Loader2 className="h-4 w-4 animate-spin text-[#141413]" />
+              ) : (
+                <Archive className="h-4 w-4 text-[#141413]" />
+              )}
+              <span className="truncate">
+                {isZipping ? 'Bundling ZIP Package...' : 'Download ZIP Package'}
+              </span>
             </div>
-            <span className="rounded bg-white/[0.08] px-1.5 py-0.5 text-[9px] font-medium text-[#faf9f5] shrink-0">
-              ZIP
+            <span className="rounded bg-[#141413]/10 px-1.5 py-0.5 text-[9.5px] font-mono font-medium text-[#141413] shrink-0">
+              index.html + styles.css
             </span>
           </button>
 
@@ -256,46 +264,43 @@ export const ExporterTab: React.FC<ExporterTabProps> = ({ tokens, element }) => 
           <button
             onClick={handleDownloadStandaloneHtml}
             disabled={isDownloadingHtml || isCloning}
-            className="group relative flex items-center justify-between rounded-lg bg-[#242220] hover:bg-[#2c2a28] border border-white/[0.1] px-3.5 py-2.5 transition-all text-start disabled:opacity-50"
+            className="flex h-10 w-full items-center justify-between rounded-lg bg-[#242220] hover:bg-[#2c2a28] active:scale-[0.99] border border-white/[0.08] text-[#faf9f5] px-3 font-medium text-[11.5px] transition-all duration-150 disabled:opacity-50"
           >
-            <div className="flex items-center gap-2.5 min-w-0">
-              <div className="flex h-7 w-7 items-center justify-center rounded-md bg-white/[0.08] text-[#faf9f5]">
-                {isDownloadingHtml ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <FileCode2 className="h-3.5 w-3.5" />}
-              </div>
-              <div className="min-w-0">
-                <div className="text-[12px] font-semibold text-[#faf9f5]">
-                  {isDownloadingHtml ? 'Packaging HTML...' : 'Download Standalone HTML'}
-                </div>
-                <div className="text-[10px] text-[#a8a29e] truncate">
-                  Single file with inlined CSS (Double-click to open)
-                </div>
-              </div>
+            <div className="flex items-center gap-2 min-w-0">
+              {isDownloadingHtml ? (
+                <Loader2 className="h-4 w-4 animate-spin text-[#faf9f5]" />
+              ) : (
+                <FileCode2 className="h-4 w-4 text-[#a8a29e]" />
+              )}
+              <span className="truncate">
+                {isDownloadingHtml ? 'Compiling Single HTML...' : 'Download Standalone HTML'}
+              </span>
             </div>
-            <span className="rounded bg-white/[0.08] px-1.5 py-0.5 text-[9px] font-medium text-[#faf9f5] shrink-0">
-              HTML
+            <span className="rounded bg-white/[0.06] px-1.5 py-0.5 text-[9.5px] font-mono font-medium text-[#a8a29e] shrink-0">
+              Inlined CSS (.html)
             </span>
           </button>
         </div>
       </div>
 
       {/* SECTION DIVIDER */}
-      <div className="flex items-center gap-2 px-1">
+      <div className="flex items-center gap-2 pt-1 px-1">
         <div className="h-px flex-1 bg-white/[0.08]"></div>
-        <span className="text-[10px] font-medium uppercase tracking-wider text-[#78716c]">
-          Code & Token Exports
+        <span className="text-[9.5px] font-medium uppercase tracking-wider text-[#78716c]">
+          Developer Exports & Tokens
         </span>
         <div className="h-px flex-1 bg-white/[0.08]"></div>
       </div>
 
-      {/* FORMAT SELECTOR PILLS */}
+      {/* FORMAT PILLS (Height 26px each) */}
       <div className="flex flex-wrap gap-1">
         {formats.map((f) => (
           <button
             key={f.id}
             onClick={() => setFormat(f.id)}
-            className={`rounded-md px-2.5 py-1 text-[11px] font-medium transition ${
+            className={`flex h-[26px] items-center rounded-md px-2.5 text-[10.5px] font-medium transition duration-150 ${
               format === f.id
-                ? 'bg-white text-[#141413] font-semibold shadow-sm'
+                ? 'bg-white text-[#141413] font-semibold shadow-xs'
                 : 'bg-[#1c1b1a] text-[#a8a29e] hover:bg-[#242220] hover:text-[#faf9f5] border border-white/[0.06]'
             }`}
           >
@@ -305,28 +310,28 @@ export const ExporterTab: React.FC<ExporterTabProps> = ({ tokens, element }) => 
       </div>
 
       {/* CODE VIEWER BOX */}
-      <div className="overflow-hidden rounded-xl border border-white/[0.08] bg-[#141413]">
-        {/* Code Bar Header */}
-        <div className="flex items-center justify-between border-b border-white/[0.08] bg-[#1c1b1a] px-3 py-2">
-          <div className="flex items-center gap-1.5 min-w-0">
-            <span className="font-mono text-[11px] font-medium text-[#faf9f5] truncate">{filename}</span>
-          </div>
+      <div className="overflow-hidden rounded-xl border border-white/[0.08] bg-[#141413] shadow-xs">
+        {/* Code Bar Header (Height 32px) */}
+        <div className="flex h-8 items-center justify-between border-b border-white/[0.08] bg-[#1c1b1a] px-3">
+          <span className="font-mono text-[10.5px] font-semibold text-[#faf9f5] truncate">
+            {filename}
+          </span>
 
           <div className="flex items-center gap-1.5 shrink-0">
             <button
               onClick={handleCopy}
-              className="flex items-center gap-1 rounded bg-white/[0.08] hover:bg-white/[0.14] px-2 py-1 text-[10px] font-medium text-[#faf9f5] transition"
+              className="flex h-5 items-center gap-1 rounded bg-white/[0.08] hover:bg-white/[0.14] px-2 text-[9.5px] font-medium text-[#faf9f5] transition"
             >
-              {copied ? <Check className="h-3 w-3 text-emerald-400" /> : <Copy className="h-3 w-3" />}
+              {copied ? <Check className="h-2.5 w-2.5 text-emerald-400" /> : <Copy className="h-2.5 w-2.5" />}
               <span>{copied ? 'Copied' : 'Copy'}</span>
             </button>
 
             {format !== 'html' && (
               <button
                 onClick={handleDownloadCodeFile}
-                className="flex items-center gap-1 rounded bg-white/[0.08] hover:bg-white/[0.14] px-2 py-1 text-[10px] font-medium text-[#faf9f5] transition"
+                className="flex h-5 items-center gap-1 rounded bg-white/[0.08] hover:bg-white/[0.14] px-2 text-[9.5px] font-medium text-[#faf9f5] transition"
               >
-                <Download className="h-3 w-3" />
+                <Download className="h-2.5 w-2.5" />
                 <span>Save</span>
               </button>
             )}
@@ -334,7 +339,7 @@ export const ExporterTab: React.FC<ExporterTabProps> = ({ tokens, element }) => 
         </div>
 
         {/* Code Content */}
-        <pre className="max-h-[260px] overflow-auto p-3 font-mono text-[10.5px] leading-relaxed text-[#a8a29e]">
+        <pre className="max-h-[220px] overflow-auto p-3 font-mono text-[10px] leading-relaxed text-[#a8a29e]">
           <code>{code}</code>
         </pre>
       </div>

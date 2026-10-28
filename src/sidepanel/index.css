@@ -4,12 +4,14 @@
   :root {
     --bg-main: #141413;
     --bg-card: #1c1b1a;
-    --bg-elevated: #242220;
+    --bg-surface: #242220;
+    --bg-surface-hover: #2c2a28;
     --border-subtle: rgba(255, 255, 255, 0.08);
-    --border-focus: rgba(255, 255, 255, 0.2);
+    --border-medium: rgba(255, 255, 255, 0.14);
+    --border-focus: rgba(255, 255, 255, 0.25);
     --text-primary: #faf9f5;
-    --text-muted: #a8a29e;
-    --text-dim: #78716c;
+    --text-secondary: #a8a29e;
+    --text-muted: #78716c;
   }
 
   body {
@@ -19,6 +21,7 @@
     color: var(--text-primary);
     font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
     -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
     user-select: none;
     overflow-x: hidden;
   }
@@ -26,8 +29,8 @@
 
 /* Minimalist refined scrollbars (Woblo style) */
 ::-webkit-scrollbar {
-  width: 5px;
-  height: 5px;
+  width: 4px;
+  height: 4px;
 }
 ::-webkit-scrollbar-track {
   background: transparent;
@@ -37,17 +40,17 @@
   border-radius: 9999px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 255, 255, 0.25);
+  background: rgba(255, 255, 255, 0.28);
 }
 
-/* Checkered background for SVG previews */
+/* Checkered background for SVG and asset previews */
 .bg-checkered {
-  background-color: #181716;
+  background-color: #171615;
   background-image: 
-    linear-gradient(45deg, #242220 25%, transparent 25%), 
-    linear-gradient(-45deg, #242220 25%, transparent 25%), 
-    linear-gradient(45deg, transparent 75%, #242220 75%), 
-    linear-gradient(-45deg, transparent 75%, #242220 75%);
-  background-size: 14px 14px;
-  background-position: 0 0, 0 7px, 7px -7px, -7px 0px;
+    linear-gradient(45deg, #22201e 25%, transparent 25%), 
+    linear-gradient(-45deg, #22201e 25%, transparent 25%), 
+    linear-gradient(45deg, transparent 75%, #22201e 75%), 
+    linear-gradient(-45deg, transparent 75%, #22201e 75%);
+  background-size: 12px 12px;
+  background-position: 0 0, 0 6px, 6px -6px, -6px 0px;
 }

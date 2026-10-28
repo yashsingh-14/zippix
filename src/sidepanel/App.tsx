@@ -120,7 +120,7 @@ export const App: React.FC = () => {
 
   return (
     <div className="flex h-screen flex-col bg-[#141413] text-[#faf9f5] select-none antialiased">
-      {/* Top Header */}
+      {/* Top Header (Height 46px) */}
       <Header
         domain={domain}
         isInspecting={isInspecting}
@@ -129,28 +129,28 @@ export const App: React.FC = () => {
         onRefreshScan={scanCurrentTab}
       />
 
-      {/* Main Tab Navigation Bar (Sleek Woblo Segmented Style) */}
-      <nav className="flex items-center gap-1 border-b border-white/[0.08] bg-[#141413] px-2.5 py-1.5 overflow-x-auto">
-        {/* Export / Clone Tab */}
+      {/* Segmented Tab Navigation Bar (Height 38px) */}
+      <nav className="flex h-[38px] items-center gap-1 border-b border-white/[0.08] bg-[#141413] px-2.5 overflow-x-auto shrink-0">
+        {/* Clone Tab */}
         <button
           onClick={() => setActiveTab('export')}
-          className={`flex items-center gap-1.5 rounded-md px-2.5 py-1 text-[11px] font-medium transition ${
+          className={`flex h-7 items-center gap-1.5 rounded-md px-2.5 text-[11px] font-medium transition duration-150 shrink-0 ${
             activeTab === 'export'
-              ? 'bg-white/[0.1] text-[#faf9f5] font-semibold border border-white/[0.12]'
-              : 'text-[#a8a29e] hover:text-[#faf9f5] hover:bg-white/[0.05]'
+              ? 'bg-white/[0.1] text-[#faf9f5] font-semibold border border-white/[0.12] shadow-xs'
+              : 'text-[#a8a29e] hover:text-[#faf9f5] hover:bg-white/[0.04]'
           }`}
         >
           <Sparkles className="h-3 w-3 text-emerald-400" />
-          <span>Clone & Export</span>
+          <span>Clone</span>
         </button>
 
         {/* Colors Tab */}
         <button
           onClick={() => setActiveTab('colors')}
-          className={`flex items-center gap-1.5 rounded-md px-2.5 py-1 text-[11px] font-medium transition ${
+          className={`flex h-7 items-center gap-1.5 rounded-md px-2.5 text-[11px] font-medium transition duration-150 shrink-0 ${
             activeTab === 'colors'
-              ? 'bg-white/[0.1] text-[#faf9f5] font-semibold border border-white/[0.12]'
-              : 'text-[#a8a29e] hover:text-[#faf9f5] hover:bg-white/[0.05]'
+              ? 'bg-white/[0.1] text-[#faf9f5] font-semibold border border-white/[0.12] shadow-xs'
+              : 'text-[#a8a29e] hover:text-[#faf9f5] hover:bg-white/[0.04]'
           }`}
         >
           <Palette className="h-3 w-3" />
@@ -165,10 +165,10 @@ export const App: React.FC = () => {
         {/* Fonts Tab */}
         <button
           onClick={() => setActiveTab('fonts')}
-          className={`flex items-center gap-1.5 rounded-md px-2.5 py-1 text-[11px] font-medium transition ${
+          className={`flex h-7 items-center gap-1.5 rounded-md px-2.5 text-[11px] font-medium transition duration-150 shrink-0 ${
             activeTab === 'fonts'
-              ? 'bg-white/[0.1] text-[#faf9f5] font-semibold border border-white/[0.12]'
-              : 'text-[#a8a29e] hover:text-[#faf9f5] hover:bg-white/[0.05]'
+              ? 'bg-white/[0.1] text-[#faf9f5] font-semibold border border-white/[0.12] shadow-xs'
+              : 'text-[#a8a29e] hover:text-[#faf9f5] hover:bg-white/[0.04]'
           }`}
         >
           <Type className="h-3 w-3" />
@@ -183,10 +183,10 @@ export const App: React.FC = () => {
         {/* Assets Tab */}
         <button
           onClick={() => setActiveTab('assets')}
-          className={`flex items-center gap-1.5 rounded-md px-2.5 py-1 text-[11px] font-medium transition ${
+          className={`flex h-7 items-center gap-1.5 rounded-md px-2.5 text-[11px] font-medium transition duration-150 shrink-0 ${
             activeTab === 'assets'
-              ? 'bg-white/[0.1] text-[#faf9f5] font-semibold border border-white/[0.12]'
-              : 'text-[#a8a29e] hover:text-[#faf9f5] hover:bg-white/[0.05]'
+              ? 'bg-white/[0.1] text-[#faf9f5] font-semibold border border-white/[0.12] shadow-xs'
+              : 'text-[#a8a29e] hover:text-[#faf9f5] hover:bg-white/[0.04]'
           }`}
         >
           <ImageIcon className="h-3 w-3" />
@@ -201,10 +201,10 @@ export const App: React.FC = () => {
         {/* Inspect Tab */}
         <button
           onClick={() => setActiveTab('inspect')}
-          className={`relative flex items-center gap-1.5 rounded-md px-2.5 py-1 text-[11px] font-medium transition ${
+          className={`relative flex h-7 items-center gap-1.5 rounded-md px-2.5 text-[11px] font-medium transition duration-150 shrink-0 ${
             activeTab === 'inspect'
-              ? 'bg-white/[0.1] text-[#faf9f5] font-semibold border border-white/[0.12]'
-              : 'text-[#a8a29e] hover:text-[#faf9f5] hover:bg-white/[0.05]'
+              ? 'bg-white/[0.1] text-[#faf9f5] font-semibold border border-white/[0.12] shadow-xs'
+              : 'text-[#a8a29e] hover:text-[#faf9f5] hover:bg-white/[0.04]'
           }`}
         >
           <Crosshair className="h-3 w-3" />
@@ -222,8 +222,8 @@ export const App: React.FC = () => {
         </div>
       )}
 
-      {/* Main Tab Content */}
-      <main className="flex-1 overflow-y-auto p-3.5">
+      {/* Main Content Area */}
+      <main className="flex-1 overflow-y-auto p-3">
         {isLoading && !tokens ? (
           <div className="flex h-full flex-col items-center justify-center py-20 text-center text-[#a8a29e]">
             <div className="h-6 w-6 animate-spin rounded-full border-2 border-white/20 border-t-[#faf9f5] mb-3" />

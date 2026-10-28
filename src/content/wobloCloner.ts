@@ -67,15 +67,17 @@ export interface CloneOptions {
 }
 
 /**
- * Zippix Master 1:1 Page Cloner (Woblo-Grade High-Fidelity Engine)
- * Replicates complete website page with 100% fidelity:
- * - Direct live DOM serialization (no destructive computed style matrix stamping)
+ * Zippix Universal 1:1 Page Cloner (Woblo-Equivalent High-Fidelity Engine)
+ * Replicates complete website page with 100% fidelity on ANY website:
+ * - Direct live DOM serialization (preserves rendered state without matrix distortion)
  * - Complete stylesheet extraction into styles.css with multi-tier fallback (CSSOM + Background)
- * - Image conversion to Base64 Data URLs for guaranteed offline rendering
+ * - Captures adoptedStyleSheets & CSS-in-JS (Emotion, styled-components, Lit)
+ * - Captures lazy-loaded images (data-src, data-srcset, data-original) converted to Base64
+ * - Preserves live input/textarea/select values and form states
  * - Preserves HTML5 video streams and centers hero background videos
  * - Interactive runtime engine for smooth hamburger menu open/close ('X' animation)
  * - Continuous infinite marquee scrolling effect
- * - Strips Next.js framework hydration chunks to eliminate "This page couldn't load"
+ * - Strips framework hydration chunks to eliminate "This page couldn't load"
  * - Packages into <siteName>.full-page.Zippix.zip containing index.html and styles.css
  */
 export async function generateClonedPackage(options?: CloneOptions): Promise<{
@@ -85,29 +87,49 @@ export async function generateClonedPackage(options?: CloneOptions): Promise<{
   zipBlob: Blob;
 }> {
   const currentUrl = window.location.href;
+
+  // 1. Sync live form inputs & interactive states before cloning
+  document.querySelectorAll('input').forEach((input) => {
+    if (input.type === 'checkbox' || input.type === 'radio') {
+      if (input.checked) input.setAttribute('checked', '');
+      else input.removeAttribute('checked');
+    } else if (input.value) {
+      input.setAttribute('value', input.value);
+    }
+  });
+  document.querySelectorAll('textarea').forEach((ta) => {
+    if (ta.value) ta.textContent = ta.value;
+  });
+  document.querySelectorAll('select').forEach((sel) => {
+    Array.from(sel.options).forEach((opt) => {
+      if (opt.selected) opt.setAttribute('selected', '');
+      else opt.removeAttribute('selected');
+    });
+  });
+
   const rawHtml = document.documentElement.outerHTML;
   const doc = new DOMParser().parseFromString(rawHtml, 'text/html');
 
-  // 1. Remove Zippix inspector roots and overlays
+  // 2. Remove Zippix inspector roots and overlays
   doc.querySelector('#zippix-inspector-root')?.remove();
   doc.querySelectorAll('[data-zippix-overlay]').forEach((el) => el.remove());
 
-  // 2. Remove full-page blocking splash screens (0% loader overlays)
+  // 3. Remove full-page blocking splash screens (0% loader overlays)
   doc.querySelectorAll('.fixed.z-50.bg-dark-brown, [class*="loading-overlay"]').forEach((el) => {
     el.remove();
   });
 
-  // 3. Guarantee Header is visible and interactive
+  // 4. Guarantee Header is visible and interactive
   doc.querySelectorAll('header, [class*="header"]').forEach((h) => {
     (h as HTMLElement).style.setProperty('opacity', '1', 'important');
     (h as HTMLElement).style.setProperty('pointer-events', 'auto', 'important');
     (h as HTMLElement).style.setProperty('visibility', 'visible', 'important');
   });
 
-  // 4. Remove any existing <base> tag so local styles.css resolves locally
+  // 5. Remove any existing <base> tag so local styles.css resolves locally
   doc.querySelectorAll('base').forEach((b) => b.remove());
 
-  // 5. Clean up scripts to prevent Next.js ErrorBoundary crash on local file://
+  // 6. Clean up framework hydration scripts (Next.js, Nuxt, Webpack, Turbopack, Trackers)
   doc.querySelectorAll('script').forEach((s) => {
     const src = s.getAttribute('src');
     if (src) {
@@ -116,7 +138,9 @@ export async function generateClonedPackage(options?: CloneOptions): Promise<{
         src.includes('google-analytics.com') ||
         src.includes('connect.facebook.net') ||
         src.includes('hotjar.com') ||
+        src.includes('clarity.ms') ||
         src.includes('/_next/static/chunks/') ||
+        src.includes('/_nuxt/') ||
         src.includes('turbopack') ||
         src.includes('webpack')
       ) {
@@ -128,25 +152,29 @@ export async function generateClonedPackage(options?: CloneOptions): Promise<{
         s.setAttribute('crossorigin', 'anonymous');
       } catch {}
     } else {
-      // Remove inline Next.js Flight/RSC streaming scripts
+      // Remove inline framework streaming / hydration scripts
       const text = s.textContent || '';
-      if (text.includes('__next_f') || text.includes('self.__next_f')) {
+      if (
+        text.includes('__next_f') ||
+        text.includes('self.__next_f') ||
+        text.includes('__NUXT__') ||
+        text.includes('webpackChunk')
+      ) {
         s.remove();
       }
     }
   });
 
-  // 6. Preload links: NEVER remove stylesheets!
+  // 7. Process <link> elements: NEVER remove stylesheets!
   doc.querySelectorAll('link').forEach((link) => {
     const rel = (link.getAttribute('rel') || '').toLowerCase();
-    // Do NOT touch stylesheet links here; they are processed in step 8
     if (rel === 'stylesheet') {
-      return;
+      return; // Handled in stylesheet extractor
     }
 
     const href = link.getAttribute('href');
-    // Remove JS chunk preloads that could cause script 404s
-    if (href && (href.includes('/_next/static/chunks/') || href.includes('turbopack'))) {
+    // Remove framework chunk preloads
+    if (href && (href.includes('/_next/static/chunks/') || href.includes('turbopack') || href.includes('/_nuxt/'))) {
       link.remove();
       return;
     }
@@ -158,7 +186,7 @@ export async function generateClonedPackage(options?: CloneOptions): Promise<{
     }
   });
 
-  // Make relative <a> tags absolute
+  // 8. Make relative <a> tags absolute
   doc.querySelectorAll('a').forEach((a) => {
     const href = a.getAttribute('href');
     if (
@@ -176,7 +204,19 @@ export async function generateClonedPackage(options?: CloneOptions): Promise<{
     }
   });
 
-  // 7. Snapshot <canvas> elements (WebGL / Three.js)
+  // 9. Fix SVG <use> tags referencing external sprite sheets
+  doc.querySelectorAll('use').forEach((use) => {
+    const href = use.getAttribute('href') || use.getAttribute('xlink:href');
+    if (href && !href.startsWith('data:') && !href.startsWith('#')) {
+      try {
+        const absHref = new URL(href, currentUrl).href;
+        use.setAttribute('href', absHref);
+        use.setAttribute('xlink:href', absHref);
+      } catch {}
+    }
+  });
+
+  // 10. Snapshot <canvas> elements (WebGL / Three.js / Spline)
   const liveCanvases = document.querySelectorAll('canvas');
   const clonedCanvases = doc.querySelectorAll('canvas');
   liveCanvases.forEach((cv, idx) => {
@@ -191,7 +231,7 @@ export async function generateClonedPackage(options?: CloneOptions): Promise<{
     } catch {}
   });
 
-  // 8. Fix HTML5 Videos (Autoplay, Loop, Muted, Absolute URLs, Hero positioning)
+  // 11. Fix HTML5 Videos (Autoplay, Loop, Muted, Absolute URLs, Hero positioning)
   const liveVideos = document.querySelectorAll('video');
   const clonedVideos = doc.querySelectorAll('video');
   clonedVideos.forEach((clonedV, idx) => {
@@ -232,7 +272,7 @@ export async function generateClonedPackage(options?: CloneOptions): Promise<{
     }
   });
 
-  // 9. Extract ALL CSS into styles.css (Multi-tier extraction: Network -> Background -> CSSOM)
+  // 12. Extract ALL CSS into styles.css (Multi-tier: Network -> Background Worker -> Live CSSOM -> Adopted Sheets)
   const stylesheetLinks = [...doc.querySelectorAll('link[rel="stylesheet"]')];
   const processedUrls = new Set<string>();
 
@@ -314,9 +354,26 @@ export async function generateClonedPackage(options?: CloneOptions): Promise<{
     }
   } catch {}
 
+  // Tier 4: Extract adoptedStyleSheets (Lit, Web Components, React 19)
+  try {
+    if ('adoptedStyleSheets' in document && (document as any).adoptedStyleSheets) {
+      for (const sheet of (document as any).adoptedStyleSheets) {
+        try {
+          const rules = sheet.cssRules;
+          if (rules && rules.length > 0) {
+            const rulesText = Array.from(rules).map((r: any) => r.cssText).join('\n');
+            if (rulesText.trim() && !masterCss.includes(rulesText.slice(0, 100))) {
+              masterCss += `/* Adopted Stylesheet */\n${rulesText}\n\n`;
+            }
+          }
+        } catch {}
+      }
+    }
+  } catch {}
+
   // Append essential animation, layout, video centering and marquee rules
   const essentialRules = `
-    /* === Zippix Fidelity Rules === */
+    /* === Zippix Universal Fidelity Rules === */
     @keyframes zippixMarquee {
       0% { transform: translate(0, var(--tw-translate-y, 0%)); }
       100% { transform: translate(var(--marquee-shift, -50%), var(--tw-translate-y, 0%)); }
@@ -361,13 +418,32 @@ export async function generateClonedPackage(options?: CloneOptions): Promise<{
   linkCss.href = 'styles.css';
   head.appendChild(linkCss);
 
-  // 10. Convert <img> sources to Base64 Data URLs (Woblo technique)
+  // 13. Convert <img> sources to Base64 Data URLs (handles lazy-loading: data-src, srcset)
   const liveImages = document.querySelectorAll('img');
   const clonedImages = [...doc.querySelectorAll('img')];
   await Promise.all(
     clonedImages.map(async (img, idx) => {
       const live = liveImages[idx];
-      const rawSrc = (live && (live.currentSrc || live.src)) || img.getAttribute('src') || '';
+      // Pick best source: live.currentSrc -> img.src -> data-src -> data-original -> srcset
+      let rawSrc =
+        (live && (live.currentSrc || live.src)) ||
+        img.getAttribute('src') ||
+        img.getAttribute('data-src') ||
+        img.getAttribute('data-original') ||
+        img.getAttribute('data-lazy-src') ||
+        '';
+
+      // If rawSrc is empty or a tiny placeholder, try picking from srcset
+      if (!rawSrc || rawSrc.startsWith('data:image/svg+xml;base64,PHN2Zy')) {
+        const srcset = img.getAttribute('srcset') || (live && live.srcset) || '';
+        if (srcset) {
+          const candidates = srcset.split(',').map((c) => c.trim().split(/\s+/)[0]);
+          if (candidates.length > 0 && candidates[candidates.length - 1]) {
+            rawSrc = candidates[candidates.length - 1];
+          }
+        }
+      }
+
       if (rawSrc) {
         const absSrc = rawSrc.startsWith('data:') ? rawSrc : new URL(rawSrc, currentUrl).href;
         if (absSrc.startsWith('http')) {
@@ -391,7 +467,7 @@ export async function generateClonedPackage(options?: CloneOptions): Promise<{
     })
   );
 
-  // 11. Embed Master Interactive Runtime Engine
+  // 14. Embed Master Interactive Runtime Engine
   // Controls Hamburger Menu open/close ('X' animation) and auto-plays all videos
   const runtimeScript = doc.createElement('script');
   runtimeScript.setAttribute('data-zippix', 'master-runtime-engine');
@@ -545,7 +621,7 @@ export async function generateClonedPackage(options?: CloneOptions): Promise<{
   `;
   head.appendChild(runtimeScript);
 
-  // 12. Generate Output Files
+  // 15. Generate Output Files
   const cleanHtml = '<!DOCTYPE html>\n' + doc.documentElement.outerHTML;
   const siteName = (
     document.title ? document.title.replace(/[^a-z0-9]/gi, '-').toLowerCase() : 'website'
