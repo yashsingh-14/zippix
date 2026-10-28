@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Copy, Check, Download, Archive, FileCode2, Loader2, Sparkles, CheckCircle2, Layers, Cpu } from 'lucide-react';
-import type { DesignTokens, InspectedElement } from '../../types';
+import { Copy, Check, Download, Archive, FileCode2, Loader2, Sparkles, CheckCircle2, Layers, Cpu, ShieldCheck } from 'lucide-react';
+import type { DesignTokens, InspectedElement, LicenseState } from '../../types';
 import {
   generateStandaloneHtml,
   generateComponentHtml,
@@ -11,13 +11,23 @@ import {
 } from '../../utils/tokenGenerators';
 import { triggerDownload, exportCloneZip } from '../../utils/zipExporter';
 import { cloneFullPageHtml } from '../../content/cloner';
+import { checkClonePermission, incrementCloneUsage } from '../../utils/licenseManager';
 
 interface ExporterTabProps {
   tokens: DesignTokens;
   element?: InspectedElement | null;
+  license?: LicenseState | null;
+  onRequirePro?: () => void;
+  onCloneUsed?: () => void;
 }
 
-export const ExporterTab: React.FC<ExporterTabProps> = ({ tokens, element }) => {
+export const ExporterTab: React.FC<ExporterTabProps> = ({
+  tokens,
+  element,
+  license,
+  onRequirePro,
+  onCloneUsed,
+}) => {
   const [format, setFormat] = useState<'html' | 'component' | 'tailwind4' | 'tailwind3' | 'css' | 'tokens_doc'>('html');
   const [copied, setCopied] = useState(false);
   const [liveCloneHtml, setLiveCloneHtml] = useState<string>(tokens.fullPageHtml || '');
@@ -119,6 +129,12 @@ export const ExporterTab: React.FC<ExporterTabProps> = ({ tokens, element }) => 
 
   // 1-Click ZIP Package Download (Exact Woblo package structure)
   const handleDownloadZipPackage = async () => {
+    const perm = await checkClonePermission();
+    if (!perm.allowed) {
+      onRequirePro?.();
+      return;
+    }
+
     setIsZipping(true);
     try {
       const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
@@ -130,6 +146,10 @@ export const ExporterTab: React.FC<ExporterTabProps> = ({ tokens, element }) => 
             const safeDomain = (tokens.domain || 'website').replace(/[^a-z0-9_-]/gi, '-');
             triggerDownload(zipBlob, `${safeDomain}.full-page.Zippix.zip`);
           }
+          if (!perm.isPro) {
+            await incrementCloneUsage();
+            onCloneUsed?.();
+          }
           setIsZipping(false);
           showSuccessNotice('ZIP package downloaded successfully!');
         });
@@ -138,6 +158,10 @@ export const ExporterTab: React.FC<ExporterTabProps> = ({ tokens, element }) => 
         const zipBlob = await exportCloneZip(fullHtml, tokens.domain || 'page-clone');
         const safeDomain = (tokens.domain || 'website').replace(/[^a-z0-9_-]/gi, '-');
         triggerDownload(zipBlob, `${safeDomain}.full-page.Zippix.zip`);
+        if (!perm.isPro) {
+          await incrementCloneUsage();
+          onCloneUsed?.();
+        }
         setIsZipping(false);
         showSuccessNotice('ZIP package downloaded successfully!');
       }
@@ -149,14 +173,24 @@ export const ExporterTab: React.FC<ExporterTabProps> = ({ tokens, element }) => 
 
   // 1-Click Standalone HTML Download (Inlined styles & base64 images)
   const handleDownloadStandaloneHtml = async () => {
+    const perm = await checkClonePermission();
+    if (!perm.allowed) {
+      onRequirePro?.();
+      return;
+    }
+
     setIsDownloadingHtml(true);
     try {
       const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
       if (tab?.id && tab.url && !tab.url.startsWith('chrome://')) {
-        chrome.tabs.sendMessage(tab.id, { type: 'DOWNLOAD_PAGE_HTML' }, (response) => {
+        chrome.tabs.sendMessage(tab.id, { type: 'DOWNLOAD_PAGE_HTML' }, async (response) => {
           if (chrome.runtime.lastError || response?.status !== 'ok') {
             const blob = new Blob([liveCloneHtml || tokens.fullPageHtml || code], { type: 'text/html;charset=utf-8' });
             triggerDownload(blob, `${(tokens.domain || 'website').replace(/[^a-z0-9_-]/gi, '-')}.html`);
+          }
+          if (!perm.isPro) {
+            await incrementCloneUsage();
+            onCloneUsed?.();
           }
           setIsDownloadingHtml(false);
           showSuccessNotice('Standalone HTML downloaded!');
@@ -164,12 +198,20 @@ export const ExporterTab: React.FC<ExporterTabProps> = ({ tokens, element }) => 
       } else {
         const blob = new Blob([liveCloneHtml || tokens.fullPageHtml || code], { type: 'text/html;charset=utf-8' });
         triggerDownload(blob, `${(tokens.domain || 'website').replace(/[^a-z0-9_-]/gi, '-')}.html`);
+        if (!perm.isPro) {
+          await incrementCloneUsage();
+          onCloneUsed?.();
+        }
         setIsDownloadingHtml(false);
         showSuccessNotice('Standalone HTML downloaded!');
       }
     } catch {
       const blob = new Blob([liveCloneHtml || tokens.fullPageHtml || code], { type: 'text/html;charset=utf-8' });
       triggerDownload(blob, `${(tokens.domain || 'website').replace(/[^a-z0-9_-]/gi, '-')}.html`);
+      if (!perm.isPro) {
+        await incrementCloneUsage();
+        onCloneUsed?.();
+      }
       setIsDownloadingHtml(false);
       showSuccessNotice('Standalone HTML downloaded!');
     }
@@ -222,6 +264,30 @@ export const ExporterTab: React.FC<ExporterTabProps> = ({ tokens, element }) => 
               </>
             )}
           </div>
+        </div>
+
+        {/* Plan / Clones Remaining Status */}
+        <div className="flex items-center justify-between rounded-lg border border-white/[0.06] bg-[#141413] px-2.5 py-1.5 text-[11px]">
+          <div className="flex items-center gap-1.5">
+            {license?.isPro ? (
+              <span className="flex items-center gap-1 text-[11px] font-semibold text-amber-300">
+                <Sparkles className="h-3 w-3 fill-amber-300" />
+                Unlimited Pro Plan Active
+              </span>
+            ) : (
+              <span className="text-[10.5px] text-[#a8a29e]">
+                Free Plan: <strong className="text-[#faf9f5]">{Math.max(0, (license?.freeClonesMax || 3) - (license?.freeClonesUsed || 0))}</strong> of {license?.freeClonesMax || 3} free clones remaining
+              </span>
+            )}
+          </div>
+          {!license?.isPro && (
+            <button
+              onClick={onRequirePro}
+              className="text-[10px] font-bold text-amber-400 hover:text-amber-300 transition"
+            >
+              Get Unlimited →
+            </button>
+          )}
         </div>
 
         <p className="text-[11px] leading-relaxed text-[#a8a29e]">

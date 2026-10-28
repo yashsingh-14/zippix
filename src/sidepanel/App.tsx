@@ -5,8 +5,10 @@ import { TypographyVault } from './components/TypographyVault';
 import { InspectorTab } from './components/InspectorTab';
 import { AssetGallery } from './components/AssetGallery';
 import { ExporterTab } from './components/ExporterTab';
+import { ProModal } from './components/ProModal';
 import { Sparkles, Palette, Type, Image as ImageIcon, Crosshair } from 'lucide-react';
-import type { DesignTokens, InspectedElement, ExtensionMessage } from '../types';
+import type { DesignTokens, InspectedElement, ExtensionMessage, LicenseState } from '../types';
+import { getLicenseState } from '../utils/licenseManager';
 
 export const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'export' | 'colors' | 'fonts' | 'assets' | 'inspect'>('export');
@@ -16,6 +18,22 @@ export const App: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [domain, setDomain] = useState('');
   const [error, setError] = useState<string | null>(null);
+  const [license, setLicense] = useState<LicenseState | null>(null);
+  const [isProModalOpen, setIsProModalOpen] = useState(false);
+
+  // Load and sync license state
+  const loadLicense = useCallback(async () => {
+    try {
+      const state = await getLicenseState();
+      setLicense(state);
+    } catch (err) {
+      console.error('Failed to load license state:', err);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadLicense();
+  }, [loadLicense]);
 
   // Scan current active tab
   const scanCurrentTab = useCallback(async () => {
@@ -127,6 +145,8 @@ export const App: React.FC = () => {
         isLoading={isLoading}
         onToggleInspect={toggleInspect}
         onRefreshScan={scanCurrentTab}
+        license={license}
+        onOpenProModal={() => setIsProModalOpen(true)}
       />
 
       {/* Segmented Tab Navigation Bar (Height 38px) */}
@@ -235,6 +255,9 @@ export const App: React.FC = () => {
               <ExporterTab
                 tokens={tokens || { domain, title: 'Webpage', colors: [], fonts: [], assets: [], shadows: [], radii: [], extractedAt: new Date().toISOString() }}
                 element={inspectedElement}
+                license={license}
+                onRequirePro={() => setIsProModalOpen(true)}
+                onCloneUsed={loadLicense}
               />
             )}
 
@@ -263,6 +286,16 @@ export const App: React.FC = () => {
           </>
         )}
       </main>
+
+      {/* Luxury Pro Upgrade & License Key Activation Modal */}
+      {license && (
+        <ProModal
+          isOpen={isProModalOpen}
+          onClose={() => setIsProModalOpen(false)}
+          license={license}
+          onLicenseUpdated={loadLicense}
+        />
+      )}
     </div>
   );
 };

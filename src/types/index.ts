@@ -99,3 +99,15 @@ export interface ExtensionMessage<T = any> {
   type: MessageType;
   payload?: T;
 }
+
+export interface LicenseState {
+  isPro: boolean;
+  licenseKey?: string;
+  customerEmail?: string;
+  planType: 'free' | 'lifetime' | 'monthly';
+  activatedAt?: string;
+  instanceId: string;
+  freeClonesUsed: number;
+  freeClonesMax: number;
+  checksum?: string;
+}
