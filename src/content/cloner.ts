@@ -28,12 +28,41 @@ export function cloneFullPageHtml(): string {
   const rawHtml = document.documentElement.outerHTML;
   const doc = new DOMParser().parseFromString(rawHtml, 'text/html');
 
+  // Strip scroll-locking classes from <html> and <body>
+  const scrollLockClasses = [
+    'has-scroll-init',
+    'has-scroll-smooth',
+    'has-scroll-scrolling',
+    'has-scroll-dragging',
+    'lenis',
+    'lenis-smooth',
+    'lenis-stopped',
+    'lenis-scrolling',
+    'is-locked',
+    'no-scroll',
+    'overflow-hidden',
+    'fp-enabled',
+  ];
+  scrollLockClasses.forEach((cls) => {
+    doc.documentElement.classList.remove(cls);
+    doc.body?.classList.remove(cls);
+  });
+
+  // Reset scroll containers
+  doc.querySelectorAll('#main, [data-scroll-container]').forEach((container) => {
+    (container as HTMLElement).style.removeProperty('transform');
+    (container as HTMLElement).style.setProperty('position', 'relative', 'important');
+    (container as HTMLElement).style.setProperty('min-height', '100vh', 'important');
+    (container as HTMLElement).style.setProperty('width', '100%', 'important');
+    (container as HTMLElement).removeAttribute('data-scroll-section-inview');
+  });
+
   // 1. Remove inspector overlays
   doc.querySelector('#zippix-inspector-root')?.remove();
   doc.querySelectorAll('[data-zippix-overlay]').forEach((el) => el.remove());
 
   // 2. Remove full-page blocking loaders
-  doc.querySelectorAll('.fixed.z-50.bg-dark-brown, [class*="loading-overlay"]').forEach((el) => {
+  doc.querySelectorAll('.fixed.z-50.bg-dark-brown, [class*="loading-overlay"], #loader').forEach((el) => {
     el.remove();
   });
 

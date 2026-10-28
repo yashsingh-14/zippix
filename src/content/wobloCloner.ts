@@ -110,12 +110,41 @@ export async function generateClonedPackage(options?: CloneOptions): Promise<{
   const rawHtml = document.documentElement.outerHTML;
   const doc = new DOMParser().parseFromString(rawHtml, 'text/html');
 
+  // Strip scroll-hijacking and locking classes from <html> and <body> (Locomotive, Lenis, GSAP, Fullpage)
+  const scrollLockClasses = [
+    'has-scroll-init',
+    'has-scroll-smooth',
+    'has-scroll-scrolling',
+    'has-scroll-dragging',
+    'lenis',
+    'lenis-smooth',
+    'lenis-stopped',
+    'lenis-scrolling',
+    'is-locked',
+    'no-scroll',
+    'overflow-hidden',
+    'fp-enabled',
+  ];
+  scrollLockClasses.forEach((cls) => {
+    doc.documentElement.classList.remove(cls);
+    doc.body?.classList.remove(cls);
+  });
+
+  // Reset scroll containers so natural browser scrolling works across all sections
+  doc.querySelectorAll('#main, [data-scroll-container]').forEach((container) => {
+    (container as HTMLElement).style.removeProperty('transform');
+    (container as HTMLElement).style.setProperty('position', 'relative', 'important');
+    (container as HTMLElement).style.setProperty('min-height', '100vh', 'important');
+    (container as HTMLElement).style.setProperty('width', '100%', 'important');
+    (container as HTMLElement).removeAttribute('data-scroll-section-inview');
+  });
+
   // 2. Remove Zippix inspector roots and overlays
   doc.querySelector('#zippix-inspector-root')?.remove();
   doc.querySelectorAll('[data-zippix-overlay]').forEach((el) => el.remove());
 
   // 3. Remove full-page blocking splash screens (0% loader overlays)
-  doc.querySelectorAll('.fixed.z-50.bg-dark-brown, [class*="loading-overlay"]').forEach((el) => {
+  doc.querySelectorAll('.fixed.z-50.bg-dark-brown, [class*="loading-overlay"], #loader').forEach((el) => {
     el.remove();
   });
 
@@ -149,7 +178,7 @@ export async function generateClonedPackage(options?: CloneOptions): Promise<{
       }
       try {
         s.setAttribute('src', new URL(src, currentUrl).href);
-        s.setAttribute('crossorigin', 'anonymous');
+        // NOTE: Do NOT add crossorigin="anonymous" here because it triggers CORS block on servers without Access-Control-Allow-Origin
       } catch {}
     } else {
       // Remove inline framework streaming / hydration scripts
@@ -371,9 +400,38 @@ export async function generateClonedPackage(options?: CloneOptions): Promise<{
     }
   } catch {}
 
-  // Append essential animation, layout, video centering and marquee rules
+  // Append essential animation, layout, video centering, marquee, and universal scroll protection rules
   const essentialRules = `
-    /* === Zippix Universal Fidelity Rules === */
+    /* === Zippix Universal Fidelity & Scroll Rules === */
+    html, body {
+      overflow-x: hidden !important;
+      overflow-y: auto !important;
+      height: auto !important;
+      min-height: 100vh !important;
+      position: static !important;
+      scroll-behavior: smooth !important;
+      -webkit-overflow-scrolling: touch !important;
+    }
+
+    html.has-scroll-smooth, .has-scroll-smooth body, html.has-scroll-init, html.lenis, html.lenis body {
+      overflow-x: hidden !important;
+      overflow-y: auto !important;
+      height: auto !important;
+      position: static !important;
+    }
+
+    #main, [data-scroll-container] {
+      transform: none !important;
+      position: relative !important;
+      min-height: 100vh !important;
+      width: 100% !important;
+      overflow: visible !important;
+    }
+
+    #loader {
+      display: none !important;
+    }
+
     @keyframes zippixMarquee {
       0% { transform: translate(0, var(--tw-translate-y, 0%)); }
       100% { transform: translate(var(--marquee-shift, -50%), var(--tw-translate-y, 0%)); }
@@ -612,9 +670,28 @@ export async function generateClonedPackage(options?: CloneOptions): Promise<{
             obs.observe(el);
           });
         } else {
-          elements.forEach(function(el) {
-            el.style.setProperty('opacity', '1', 'important');
+      // 4. Featured Projects Interactive Hover Engine (Sundown / Webflow data-img)
+      window.addEventListener('DOMContentLoaded', function() {
+        var elemContainer = document.querySelector('#elem-container');
+        var fixedImg = document.querySelector('#fixed-img');
+        if (elemContainer && fixedImg) {
+          elemContainer.addEventListener('mouseenter', function() {
+            fixedImg.style.display = 'block';
           });
+          elemContainer.addEventListener('mouseleave', function() {
+            fixedImg.style.display = 'none';
+          });
+          document.querySelectorAll('.elem').forEach(function(el) {
+            el.addEventListener('mouseenter', function() {
+              var img = el.getAttribute('data-img');
+              if (img) fixedImg.style.backgroundImage = 'url(' + img + ')';
+            });
+          });
+        }
+
+        var loader = document.querySelector('#loader');
+        if (loader) {
+          loader.style.setProperty('display', 'none', 'important');
         }
       });
     })();
