@@ -11,7 +11,7 @@ export async function exportCloneZip(
   let html = fullHtml;
   let css = '';
 
-  const styleMatch = html.match(/<style data-zippix="master-cloned-styles">([\s\S]*?)<\/style>/);
+  const styleMatch = html.match(/<style data-zippix="(?:master-styles|master-cloned-styles)">([\s\S]*?)<\/style>/);
   if (styleMatch) {
     css = styleMatch[1];
     html = html.replace(

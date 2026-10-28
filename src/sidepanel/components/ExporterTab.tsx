@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Copy, Check, Download, Code2, Archive } from 'lucide-react';
+import { Copy, Check, Download, Code2, Archive, Loader2 } from 'lucide-react';
 import type { DesignTokens, InspectedElement } from '../../types';
 import {
   generateStandaloneHtml,
@@ -23,6 +23,7 @@ export const ExporterTab: React.FC<ExporterTabProps> = ({ tokens, element }) => 
   const [liveCloneHtml, setLiveCloneHtml] = useState<string>(tokens.fullPageHtml || '');
   const [isCloning, setIsCloning] = useState(false);
   const [isZipping, setIsZipping] = useState(false);
+  const [isDownloadingHtml, setIsDownloadingHtml] = useState(false);
 
   // Directly clone the active tab DOM in real-time
   useEffect(() => {
@@ -33,13 +34,12 @@ export const ExporterTab: React.FC<ExporterTabProps> = ({ tokens, element }) => 
 
     chrome.tabs.query({ active: true, currentWindow: true }).then(([tab]) => {
       if (tab?.id && tab.url && !tab.url.startsWith('chrome://')) {
-        // Try messaging the content script first
         chrome.tabs.sendMessage(tab.id, { type: 'GET_LIVE_CLONE' }, (response) => {
           if (!chrome.runtime.lastError && response?.status === 'ok' && response.html) {
             setLiveCloneHtml(response.html);
             setIsCloning(false);
           } else {
-            // Scripting execution fallback
+            // Scripting fallback
             chrome.scripting
               .executeScript({
                 target: { tabId: tab.id! },
@@ -52,7 +52,7 @@ export const ExporterTab: React.FC<ExporterTabProps> = ({ tokens, element }) => 
                 setIsCloning(false);
               })
               .catch((err) => {
-                console.warn('Live clone failed:', err);
+                console.warn('Live clone fallback failed:', err);
                 setIsCloning(false);
               });
           }
@@ -112,21 +112,60 @@ export const ExporterTab: React.FC<ExporterTabProps> = ({ tokens, element }) => 
     setTimeout(() => setCopied(false), 1500);
   };
 
-  const handleDownload = () => {
-    const blob = new Blob([code], { type: `${mime};charset=utf-8` });
-    triggerDownload(blob, filename);
+  const handleDownload = async () => {
+    if (format === 'html') {
+      setIsDownloadingHtml(true);
+      try {
+        const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+        if (tab?.id && tab.url && !tab.url.startsWith('chrome://')) {
+          chrome.tabs.sendMessage(tab.id, { type: 'DOWNLOAD_PAGE_HTML' }, (response) => {
+            if (chrome.runtime.lastError || response?.status !== 'ok') {
+              // Fallback
+              const blob = new Blob([code], { type: `${mime};charset=utf-8` });
+              triggerDownload(blob, filename);
+            }
+            setIsDownloadingHtml(false);
+          });
+        } else {
+          const blob = new Blob([code], { type: `${mime};charset=utf-8` });
+          triggerDownload(blob, filename);
+          setIsDownloadingHtml(false);
+        }
+      } catch {
+        const blob = new Blob([code], { type: `${mime};charset=utf-8` });
+        triggerDownload(blob, filename);
+        setIsDownloadingHtml(false);
+      }
+    } else {
+      const blob = new Blob([code], { type: `${mime};charset=utf-8` });
+      triggerDownload(blob, filename);
+    }
   };
 
   const handleDownloadZipPackage = async () => {
     setIsZipping(true);
     try {
-      const fullHtml = liveCloneHtml || tokens.fullPageHtml || '';
-      const zipBlob = await exportCloneZip(fullHtml, tokens.domain || 'page-clone');
-      const safeDomain = (tokens.domain || 'website').replace(/[^a-z0-9_-]/gi, '-');
-      triggerDownload(zipBlob, `${safeDomain}.full-page.Woblo.zip`);
+      const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+      if (tab?.id && tab.url && !tab.url.startsWith('chrome://')) {
+        chrome.tabs.sendMessage(tab.id, { type: 'DOWNLOAD_PAGE_ZIP' }, async (response) => {
+          if (chrome.runtime.lastError || response?.status !== 'ok') {
+            // Fallback
+            const fullHtml = liveCloneHtml || tokens.fullPageHtml || '';
+            const zipBlob = await exportCloneZip(fullHtml, tokens.domain || 'page-clone');
+            const safeDomain = (tokens.domain || 'website').replace(/[^a-z0-9_-]/gi, '-');
+            triggerDownload(zipBlob, `${safeDomain}.full-page.Zippix.zip`);
+          }
+          setIsZipping(false);
+        });
+      } else {
+        const fullHtml = liveCloneHtml || tokens.fullPageHtml || '';
+        const zipBlob = await exportCloneZip(fullHtml, tokens.domain || 'page-clone');
+        const safeDomain = (tokens.domain || 'website').replace(/[^a-z0-9_-]/gi, '-');
+        triggerDownload(zipBlob, `${safeDomain}.full-page.Zippix.zip`);
+        setIsZipping(false);
+      }
     } catch (e) {
       console.error('Failed to create clone zip:', e);
-    } finally {
       setIsZipping(false);
     }
   };
@@ -187,19 +226,20 @@ export const ExporterTab: React.FC<ExporterTabProps> = ({ tokens, element }) => 
                 onClick={handleDownloadZipPackage}
                 disabled={isZipping}
                 title="Download HTML + CSS in a Zip Package (Woblo Style)"
-                className="flex items-center gap-1 rounded bg-indigo-600/90 px-2 py-1 text-[11px] font-semibold text-white hover:bg-indigo-500 shadow-sm transition disabled:opacity-50"
+                className="flex items-center gap-1.5 rounded bg-indigo-600/90 px-2.5 py-1 text-[11px] font-semibold text-white hover:bg-indigo-500 shadow-sm transition disabled:opacity-50"
               >
-                <Archive className="h-3 w-3" />
+                {isZipping ? <Loader2 className="h-3 w-3 animate-spin" /> : <Archive className="h-3 w-3" />}
                 <span>{isZipping ? 'Zipping...' : 'Zip Package'}</span>
               </button>
             )}
 
             <button
               onClick={handleDownload}
-              className="flex items-center gap-1 rounded bg-cyan-600 px-2.5 py-1 text-[11px] font-semibold text-white hover:bg-cyan-500 shadow-sm transition"
+              disabled={isDownloadingHtml}
+              className="flex items-center gap-1.5 rounded bg-cyan-600 px-2.5 py-1 text-[11px] font-semibold text-white hover:bg-cyan-500 shadow-sm transition disabled:opacity-50"
             >
-              <Download className="h-3 w-3" />
-              <span>Download HTML</span>
+              {isDownloadingHtml ? <Loader2 className="h-3 w-3 animate-spin" /> : <Download className="h-3 w-3" />}
+              <span>{isDownloadingHtml ? 'Downloading...' : 'Download HTML'}</span>
             </button>
           </div>
         </div>

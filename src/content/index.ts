@@ -1,5 +1,10 @@
 import { ElementInspector } from './inspector';
 import { scanPageDesignTokens } from './extractor';
+import {
+  downloadPageAsZip,
+  downloadPageAsHtml,
+  generateClonedPackage,
+} from './wobloCloner';
 import { cloneFullPageHtml } from './cloner';
 import type { ExtensionMessage, InspectedElement } from '../types';
 
@@ -50,13 +55,38 @@ chrome.runtime.onMessage.addListener((message: ExtensionMessage, _sender, sendRe
     }
 
     case 'GET_LIVE_CLONE': {
-      try {
-        const html = cloneFullPageHtml();
-        sendResponse({ status: 'ok', html });
-      } catch (err: any) {
-        sendResponse({ status: 'error', error: err?.message || 'Failed to clone page' });
-      }
-      break;
+      generateClonedPackage()
+        .then(({ html, css, siteName }) => {
+          sendResponse({ status: 'ok', html, css, siteName });
+        })
+        .catch((err: any) => {
+          sendResponse({ status: 'error', error: err?.message || 'Failed to clone page' });
+        });
+      return true;
+    }
+
+    case 'DOWNLOAD_PAGE_ZIP': {
+      downloadPageAsZip()
+        .then(() => {
+          sendResponse({ status: 'ok' });
+        })
+        .catch((err: any) => {
+          console.error('Zippix ZIP download error:', err);
+          sendResponse({ status: 'error', error: err?.message || 'Failed to download ZIP' });
+        });
+      return true;
+    }
+
+    case 'DOWNLOAD_PAGE_HTML': {
+      downloadPageAsHtml()
+        .then(() => {
+          sendResponse({ status: 'ok' });
+        })
+        .catch((err: any) => {
+          console.error('Zippix HTML download error:', err);
+          sendResponse({ status: 'error', error: err?.message || 'Failed to download HTML' });
+        });
+      return true;
     }
 
     default:
