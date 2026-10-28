@@ -670,6 +670,12 @@ export async function generateClonedPackage(options?: CloneOptions): Promise<{
             obs.observe(el);
           });
         } else {
+          elements.forEach(function(el) {
+            el.style.setProperty('opacity', '1', 'important');
+          });
+        }
+      });
+
       // 4. Featured Projects Interactive Hover Engine (Sundown / Webflow data-img)
       window.addEventListener('DOMContentLoaded', function() {
         var elemContainer = document.querySelector('#elem-container');
