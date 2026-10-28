@@ -5,12 +5,11 @@ import { TypographyVault } from './components/TypographyVault';
 import { InspectorTab } from './components/InspectorTab';
 import { AssetGallery } from './components/AssetGallery';
 import { ExporterTab } from './components/ExporterTab';
-import { Palette, Crosshair, Image as ImageIcon, FileCode2 } from 'lucide-react';
+import { Sparkles, Palette, Type, Image as ImageIcon, Crosshair } from 'lucide-react';
 import type { DesignTokens, InspectedElement, ExtensionMessage } from '../types';
 
 export const App: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<'design' | 'inspector' | 'assets' | 'export'>('design');
-  const [designSubTab, setDesignSubTab] = useState<'colors' | 'typography'>('colors');
+  const [activeTab, setActiveTab] = useState<'export' | 'colors' | 'fonts' | 'assets' | 'inspect'>('export');
   const [tokens, setTokens] = useState<DesignTokens | null>(null);
   const [inspectedElement, setInspectedElement] = useState<InspectedElement | null>(null);
   const [isInspecting, setIsInspecting] = useState(false);
@@ -57,7 +56,7 @@ export const App: React.FC = () => {
             },
             () => {
               if (chrome.runtime.lastError) {
-                setError('Could not inject into this page. Refresh the webpage and try again.');
+                setError('Could not inspect this page. Refresh the webpage and try again.');
                 setIsLoading(false);
                 return;
               }
@@ -102,7 +101,7 @@ export const App: React.FC = () => {
       if (message.type === 'ELEMENT_SELECTED') {
         setInspectedElement(message.payload);
         setIsInspecting(false);
-        setActiveTab('inspector'); // Auto-switch to inspector tab when user clicks an element!
+        setActiveTab('inspect'); // Auto-switch to inspect tab when element selected
       } else if (message.type === 'INSPECTOR_STATE_UPDATE') {
         setIsInspecting(message.payload.isInspecting);
       }
@@ -120,7 +119,7 @@ export const App: React.FC = () => {
   }, [scanCurrentTab]);
 
   return (
-    <div className="flex h-screen flex-col bg-[#0b0f19] text-slate-100 select-none">
+    <div className="flex h-screen flex-col bg-[#141413] text-[#faf9f5] select-none antialiased">
       {/* Top Header */}
       <Header
         domain={domain}
@@ -130,68 +129,95 @@ export const App: React.FC = () => {
         onRefreshScan={scanCurrentTab}
       />
 
-      {/* Main Tab Navigation Bar */}
-      <nav className="flex border-b border-slate-800/80 bg-slate-950/40 px-2 pt-1 text-xs font-medium">
+      {/* Main Tab Navigation Bar (Sleek Woblo Segmented Style) */}
+      <nav className="flex items-center gap-1 border-b border-white/[0.08] bg-[#141413] px-2.5 py-1.5 overflow-x-auto">
+        {/* Export / Clone Tab */}
         <button
-          onClick={() => setActiveTab('design')}
-          className={`flex items-center gap-1.5 border-b-2 px-3 py-2 transition ${
-            activeTab === 'design'
-              ? 'border-cyan-400 text-cyan-400 font-semibold'
-              : 'border-transparent text-slate-400 hover:text-slate-200'
+          onClick={() => setActiveTab('export')}
+          className={`flex items-center gap-1.5 rounded-md px-2.5 py-1 text-[11px] font-medium transition ${
+            activeTab === 'export'
+              ? 'bg-white/[0.1] text-[#faf9f5] font-semibold border border-white/[0.12]'
+              : 'text-[#a8a29e] hover:text-[#faf9f5] hover:bg-white/[0.05]'
           }`}
         >
-          <Palette className="h-3.5 w-3.5" />
-          <span>Design</span>
+          <Sparkles className="h-3 w-3 text-emerald-400" />
+          <span>Clone & Export</span>
         </button>
 
+        {/* Colors Tab */}
         <button
-          onClick={() => setActiveTab('inspector')}
-          className={`relative flex items-center gap-1.5 border-b-2 px-3 py-2 transition ${
-            activeTab === 'inspector'
-              ? 'border-cyan-400 text-cyan-400 font-semibold'
-              : 'border-transparent text-slate-400 hover:text-slate-200'
+          onClick={() => setActiveTab('colors')}
+          className={`flex items-center gap-1.5 rounded-md px-2.5 py-1 text-[11px] font-medium transition ${
+            activeTab === 'colors'
+              ? 'bg-white/[0.1] text-[#faf9f5] font-semibold border border-white/[0.12]'
+              : 'text-[#a8a29e] hover:text-[#faf9f5] hover:bg-white/[0.05]'
           }`}
         >
-          <Crosshair className="h-3.5 w-3.5" />
-          <span>Inspector</span>
-          {inspectedElement && (
-            <span className="h-1.5 w-1.5 rounded-full bg-cyan-400"></span>
+          <Palette className="h-3 w-3" />
+          <span>Colors</span>
+          {tokens && tokens.colors.length > 0 && (
+            <span className="text-[9.5px] font-mono text-[#78716c]">
+              {tokens.colors.length}
+            </span>
           )}
         </button>
 
+        {/* Fonts Tab */}
         <button
-          onClick={() => setActiveTab('assets')}
-          className={`flex items-center gap-1.5 border-b-2 px-3 py-2 transition ${
-            activeTab === 'assets'
-              ? 'border-cyan-400 text-cyan-400 font-semibold'
-              : 'border-transparent text-slate-400 hover:text-slate-200'
+          onClick={() => setActiveTab('fonts')}
+          className={`flex items-center gap-1.5 rounded-md px-2.5 py-1 text-[11px] font-medium transition ${
+            activeTab === 'fonts'
+              ? 'bg-white/[0.1] text-[#faf9f5] font-semibold border border-white/[0.12]'
+              : 'text-[#a8a29e] hover:text-[#faf9f5] hover:bg-white/[0.05]'
           }`}
         >
-          <ImageIcon className="h-3.5 w-3.5" />
+          <Type className="h-3 w-3" />
+          <span>Fonts</span>
+          {tokens && tokens.fonts.length > 0 && (
+            <span className="text-[9.5px] font-mono text-[#78716c]">
+              {tokens.fonts.length}
+            </span>
+          )}
+        </button>
+
+        {/* Assets Tab */}
+        <button
+          onClick={() => setActiveTab('assets')}
+          className={`flex items-center gap-1.5 rounded-md px-2.5 py-1 text-[11px] font-medium transition ${
+            activeTab === 'assets'
+              ? 'bg-white/[0.1] text-[#faf9f5] font-semibold border border-white/[0.12]'
+              : 'text-[#a8a29e] hover:text-[#faf9f5] hover:bg-white/[0.05]'
+          }`}
+        >
+          <ImageIcon className="h-3 w-3" />
           <span>Assets</span>
           {tokens && tokens.assets.length > 0 && (
-            <span className="rounded bg-slate-800 px-1 py-0.2 text-[9px] font-mono text-slate-400">
+            <span className="text-[9.5px] font-mono text-[#78716c]">
               {tokens.assets.length}
             </span>
           )}
         </button>
 
+        {/* Inspect Tab */}
         <button
-          onClick={() => setActiveTab('export')}
-          className={`flex items-center gap-1.5 border-b-2 px-3 py-2 transition ${
-            activeTab === 'export'
-              ? 'border-cyan-400 text-cyan-400 font-semibold'
-              : 'border-transparent text-slate-400 hover:text-slate-200'
+          onClick={() => setActiveTab('inspect')}
+          className={`relative flex items-center gap-1.5 rounded-md px-2.5 py-1 text-[11px] font-medium transition ${
+            activeTab === 'inspect'
+              ? 'bg-white/[0.1] text-[#faf9f5] font-semibold border border-white/[0.12]'
+              : 'text-[#a8a29e] hover:text-[#faf9f5] hover:bg-white/[0.05]'
           }`}
         >
-          <FileCode2 className="h-3.5 w-3.5" />
-          <span>Export</span>
+          <Crosshair className="h-3 w-3" />
+          <span>Inspect</span>
+          {inspectedElement && (
+            <span className="h-1.5 w-1.5 rounded-full bg-emerald-400"></span>
+          )}
         </button>
       </nav>
 
       {/* Error notification */}
       {error && (
-        <div className="m-3 rounded-lg border border-red-500/30 bg-red-950/20 p-2.5 text-xs text-red-300">
+        <div className="m-3 rounded-lg border border-red-500/20 bg-red-950/30 p-2.5 text-xs text-red-300">
           {error}
         </div>
       )}
@@ -199,52 +225,25 @@ export const App: React.FC = () => {
       {/* Main Tab Content */}
       <main className="flex-1 overflow-y-auto p-3.5">
         {isLoading && !tokens ? (
-          <div className="flex h-full flex-col items-center justify-center py-16 text-center text-slate-400">
-            <div className="h-7 w-7 animate-spin rounded-full border-2 border-cyan-500 border-t-transparent mb-3" />
-            <p className="text-xs">Scanning webpage design system...</p>
+          <div className="flex h-full flex-col items-center justify-center py-20 text-center text-[#a8a29e]">
+            <div className="h-6 w-6 animate-spin rounded-full border-2 border-white/20 border-t-[#faf9f5] mb-3" />
+            <p className="text-xs font-medium text-[#a8a29e]">Scanning webpage design tokens...</p>
           </div>
         ) : (
           <>
-            {activeTab === 'design' && (
-              <div className="space-y-4">
-                {/* Design Sub-navigation */}
-                <div className="flex rounded-lg bg-slate-900/80 p-0.5 border border-slate-800">
-                  <button
-                    onClick={() => setDesignSubTab('colors')}
-                    className={`flex-1 rounded-md py-1 text-center text-xs font-medium transition ${
-                      designSubTab === 'colors'
-                        ? 'bg-cyan-500/20 text-cyan-300 shadow-sm'
-                        : 'text-slate-400 hover:text-slate-200'
-                    }`}
-                  >
-                    Colors ({tokens?.colors.length || 0})
-                  </button>
-                  <button
-                    onClick={() => setDesignSubTab('typography')}
-                    className={`flex-1 rounded-md py-1 text-center text-xs font-medium transition ${
-                      designSubTab === 'typography'
-                        ? 'bg-cyan-500/20 text-cyan-300 shadow-sm'
-                        : 'text-slate-400 hover:text-slate-200'
-                    }`}
-                  >
-                    Typography ({tokens?.fonts.length || 0})
-                  </button>
-                </div>
-
-                {designSubTab === 'colors' ? (
-                  <ColorVault colors={tokens?.colors || []} />
-                ) : (
-                  <TypographyVault fonts={tokens?.fonts || []} />
-                )}
-              </div>
+            {activeTab === 'export' && (
+              <ExporterTab
+                tokens={tokens || { domain, title: 'Webpage', colors: [], fonts: [], assets: [], shadows: [], radii: [], extractedAt: new Date().toISOString() }}
+                element={inspectedElement}
+              />
             )}
 
-            {activeTab === 'inspector' && (
-              <InspectorTab
-                element={inspectedElement}
-                isInspecting={isInspecting}
-                onStartInspect={toggleInspect}
-              />
+            {activeTab === 'colors' && (
+              <ColorVault colors={tokens?.colors || []} />
+            )}
+
+            {activeTab === 'fonts' && (
+              <TypographyVault fonts={tokens?.fonts || []} />
             )}
 
             {activeTab === 'assets' && (
@@ -254,8 +253,12 @@ export const App: React.FC = () => {
               />
             )}
 
-            {activeTab === 'export' && tokens && (
-              <ExporterTab tokens={tokens} element={inspectedElement} />
+            {activeTab === 'inspect' && (
+              <InspectorTab
+                element={inspectedElement}
+                isInspecting={isInspecting}
+                onStartInspect={toggleInspect}
+              />
             )}
           </>
         )}

@@ -1,41 +1,53 @@
 @import "tailwindcss";
 
 @layer base {
+  :root {
+    --bg-main: #141413;
+    --bg-card: #1c1b1a;
+    --bg-elevated: #242220;
+    --border-subtle: rgba(255, 255, 255, 0.08);
+    --border-focus: rgba(255, 255, 255, 0.2);
+    --text-primary: #faf9f5;
+    --text-muted: #a8a29e;
+    --text-dim: #78716c;
+  }
+
   body {
     margin: 0;
     padding: 0;
-    background-color: #0b0f19;
-    color: #f1f5f9;
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    background-color: var(--bg-main);
+    color: var(--text-primary);
+    font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    -webkit-font-smoothing: antialiased;
     user-select: none;
     overflow-x: hidden;
   }
 }
 
-/* Custom scrollbars */
+/* Minimalist refined scrollbars (Woblo style) */
 ::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+  width: 5px;
+  height: 5px;
 }
 ::-webkit-scrollbar-track {
-  background: #0b0f19;
+  background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: #1e293b;
+  background: rgba(255, 255, 255, 0.15);
   border-radius: 9999px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #334155;
+  background: rgba(255, 255, 255, 0.25);
 }
 
 /* Checkered background for SVG previews */
 .bg-checkered {
-  background-color: #111827;
+  background-color: #181716;
   background-image: 
-    linear-gradient(45deg, #1f2937 25%, transparent 25%), 
-    linear-gradient(-45deg, #1f2937 25%, transparent 25%), 
-    linear-gradient(45deg, transparent 75%, #1f2937 75%), 
-    linear-gradient(-45deg, transparent 75%, #1f2937 75%);
-  background-size: 16px 16px;
-  background-position: 0 0, 0 8px, 8px -8px, -8px 0px;
+    linear-gradient(45deg, #242220 25%, transparent 25%), 
+    linear-gradient(-45deg, #242220 25%, transparent 25%), 
+    linear-gradient(45deg, transparent 75%, #242220 75%), 
+    linear-gradient(-45deg, transparent 75%, #242220 75%);
+  background-size: 14px 14px;
+  background-position: 0 0, 0 7px, 7px -7px, -7px 0px;
 }

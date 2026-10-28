@@ -1,24 +1,63 @@
 import JSZip from 'jszip';
 
-// Helper to fetch resource (text or Base64 data URL)
+// Fetch helper with multi-tier fallback (Content script -> Background worker)
 async function fetchResource(url: string, asDataUrl = false): Promise<string | null> {
+  // 1. Try direct fetch in current page context
   try {
     const res = await fetch(url);
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    if (asDataUrl) {
-      const blob = await res.blob();
-      return new Promise<string>((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onloadend = () => resolve(reader.result as string);
-        reader.onerror = reject;
-        reader.readAsDataURL(blob);
-      });
-    } else {
-      return await res.text();
+    if (res.ok) {
+      if (asDataUrl) {
+        const blob = await res.blob();
+        return new Promise<string>((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onloadend = () => resolve(reader.result as string);
+          reader.onerror = reject;
+          reader.readAsDataURL(blob);
+        });
+      } else {
+        return await res.text();
+      }
     }
-  } catch {
-    return null;
-  }
+  } catch {}
+
+  // 2. Fallback: Ask background service worker (bypasses CSP & CORS with host_permissions)
+  try {
+    const bgData = await new Promise<string | null>((resolve) => {
+      chrome.runtime.sendMessage(
+        { type: 'FETCH_RESOURCE', url, asDataUrl },
+        (response) => {
+          if (!chrome.runtime.lastError && response?.status === 'ok' && response.data) {
+            resolve(response.data);
+          } else {
+            resolve(null);
+          }
+        }
+      );
+    });
+    if (bgData) return bgData;
+  } catch {}
+
+  return null;
+}
+
+// Extract rules directly from browser's live CSSOM if network fetch is blocked
+function getCssFromCssom(sheetAbsUrl: string): string | null {
+  try {
+    for (const sheet of Array.from(document.styleSheets)) {
+      if (sheet.href) {
+        try {
+          const abs = new URL(sheet.href, window.location.href).href;
+          if (abs === sheetAbsUrl) {
+            const rules = sheet.cssRules || sheet.rules;
+            if (rules && rules.length > 0) {
+              return Array.from(rules).map((r) => r.cssText).join('\n');
+            }
+          }
+        } catch {}
+      }
+    }
+  } catch {}
+  return null;
 }
 
 export interface CloneOptions {
@@ -28,10 +67,10 @@ export interface CloneOptions {
 }
 
 /**
- * Zippix Ultimate 1:1 Page Cloner (Woblo-Equivalent Engine)
+ * Zippix Master 1:1 Page Cloner (Woblo-Grade High-Fidelity Engine)
  * Replicates complete website page with 100% fidelity:
- * - Direct live DOM serialization (no computed transform stamping)
- * - Complete stylesheet extraction into unified styles.css with rewritten absolute URLs
+ * - Direct live DOM serialization (no destructive computed style matrix stamping)
+ * - Complete stylesheet extraction into styles.css with multi-tier fallback (CSSOM + Background)
  * - Image conversion to Base64 Data URLs for guaranteed offline rendering
  * - Preserves HTML5 video streams and centers hero background videos
  * - Interactive runtime engine for smooth hamburger menu open/close ('X' animation)
@@ -49,7 +88,7 @@ export async function generateClonedPackage(options?: CloneOptions): Promise<{
   const rawHtml = document.documentElement.outerHTML;
   const doc = new DOMParser().parseFromString(rawHtml, 'text/html');
 
-  // 1. Remove Zippix overlays
+  // 1. Remove Zippix inspector roots and overlays
   doc.querySelector('#zippix-inspector-root')?.remove();
   doc.querySelectorAll('[data-zippix-overlay]').forEach((el) => el.remove());
 
@@ -97,15 +136,22 @@ export async function generateClonedPackage(options?: CloneOptions): Promise<{
     }
   });
 
-  // Remove Next.js chunk preloads
+  // 6. Preload links: NEVER remove stylesheets!
   doc.querySelectorAll('link').forEach((link) => {
+    const rel = (link.getAttribute('rel') || '').toLowerCase();
+    // Do NOT touch stylesheet links here; they are processed in step 8
+    if (rel === 'stylesheet') {
+      return;
+    }
+
     const href = link.getAttribute('href');
+    // Remove JS chunk preloads that could cause script 404s
     if (href && (href.includes('/_next/static/chunks/') || href.includes('turbopack'))) {
       link.remove();
       return;
     }
     // Make relative favicon/font links absolute
-    if (href && !href.startsWith('http') && !href.startsWith('//') && !href.startsWith('data:') && link.getAttribute('rel') !== 'stylesheet') {
+    if (href && !href.startsWith('http') && !href.startsWith('//') && !href.startsWith('data:')) {
       try {
         link.setAttribute('href', new URL(href, currentUrl).href);
       } catch {}
@@ -115,14 +161,22 @@ export async function generateClonedPackage(options?: CloneOptions): Promise<{
   // Make relative <a> tags absolute
   doc.querySelectorAll('a').forEach((a) => {
     const href = a.getAttribute('href');
-    if (href && !href.startsWith('http') && !href.startsWith('//') && !href.startsWith('#') && !href.startsWith('javascript:') && !href.startsWith('mailto:') && !href.startsWith('tel:')) {
+    if (
+      href &&
+      !href.startsWith('http') &&
+      !href.startsWith('//') &&
+      !href.startsWith('#') &&
+      !href.startsWith('javascript:') &&
+      !href.startsWith('mailto:') &&
+      !href.startsWith('tel:')
+    ) {
       try {
         a.setAttribute('href', new URL(href, currentUrl).href);
       } catch {}
     }
   });
 
-  // 6. Snapshot <canvas> elements (WebGL / Three.js)
+  // 7. Snapshot <canvas> elements (WebGL / Three.js)
   const liveCanvases = document.querySelectorAll('canvas');
   const clonedCanvases = doc.querySelectorAll('canvas');
   liveCanvases.forEach((cv, idx) => {
@@ -137,7 +191,7 @@ export async function generateClonedPackage(options?: CloneOptions): Promise<{
     } catch {}
   });
 
-  // 7. Fix HTML5 Videos (Autoplay, Loop, Muted, Absolute URLs, Hero positioning)
+  // 8. Fix HTML5 Videos (Autoplay, Loop, Muted, Absolute URLs, Hero positioning)
   const liveVideos = document.querySelectorAll('video');
   const clonedVideos = doc.querySelectorAll('video');
   clonedVideos.forEach((clonedV, idx) => {
@@ -168,7 +222,8 @@ export async function generateClonedPackage(options?: CloneOptions): Promise<{
     // Active flavor video positioning (e.g. Baklawa)
     if (liveV) {
       const liveStyle = window.getComputedStyle(liveV);
-      const isVisible = liveStyle.display !== 'none' && liveStyle.visibility !== 'hidden' && liveStyle.opacity !== '0';
+      const isVisible =
+        liveStyle.display !== 'none' && liveStyle.visibility !== 'hidden' && liveStyle.opacity !== '0';
       if (isVisible || clonedV.id.includes('baklawa')) {
         clonedV.classList.remove('hidden', 'opacity-0');
         (clonedV as HTMLElement).style.removeProperty('display');
@@ -177,25 +232,37 @@ export async function generateClonedPackage(options?: CloneOptions): Promise<{
     }
   });
 
-  // 8. Extract all CSS into styles.css (Woblo technique)
+  // 9. Extract ALL CSS into styles.css (Multi-tier extraction: Network -> Background -> CSSOM)
   const stylesheetLinks = [...doc.querySelectorAll('link[rel="stylesheet"]')];
+  const processedUrls = new Set<string>();
+
   const cssPromises = stylesheetLinks.map(async (linkEl, index) => {
     const href = linkEl.getAttribute('href');
     if (!href) return '';
     const absUrl = new URL(href, currentUrl).href;
+    processedUrls.add(absUrl);
+
     options?.onProgress?.({
       stage: 'css',
       current: index + 1,
       total: stylesheetLinks.length,
-      message: `Fetching stylesheet ${index + 1}/${stylesheetLinks.length}`,
+      message: `Extracting stylesheet ${index + 1}/${stylesheetLinks.length}`,
     });
 
     try {
-      const cssContent = await fetchResource(absUrl);
-      if (cssContent === null) {
-        linkEl.setAttribute('href', absUrl);
-        return `/* Failed to fetch ${absUrl} */\n`;
+      // Tier 1: Try network / background fetch
+      let cssContent = await fetchResource(absUrl);
+
+      // Tier 2: Try browser's live CSSOM if fetch returned null
+      if (!cssContent) {
+        cssContent = getCssFromCssom(absUrl);
       }
+
+      if (cssContent === null || !cssContent.trim()) {
+        linkEl.setAttribute('href', absUrl);
+        return `/* Retained external stylesheet: ${absUrl} */\n`;
+      }
+
       linkEl.remove();
 
       // Rewrite relative url(...) to absolute URLs
@@ -212,7 +279,7 @@ export async function generateClonedPackage(options?: CloneOptions): Promise<{
       return `/* Source: ${absUrl} */\n${rewrittenCss}\n\n`;
     } catch {
       linkEl.setAttribute('href', absUrl);
-      return `/* Error fetching: ${absUrl} */\n`;
+      return `/* Error extracting: ${absUrl} */\n`;
     }
   });
 
@@ -220,9 +287,32 @@ export async function generateClonedPackage(options?: CloneOptions): Promise<{
 
   // Collect and remove all inline <style> tags
   doc.querySelectorAll('style').forEach((st) => {
-    masterCss += `/* Inline Style */\n${st.textContent || ''}\n\n`;
+    const text = st.textContent || '';
+    if (text.trim()) {
+      masterCss += `/* Inline Style */\n${text}\n\n`;
+    }
     st.remove();
   });
+
+  // Tier 3: Extract any CSS-in-JS (Emotion, styled-components, constructed sheets) from document.styleSheets
+  try {
+    for (const sheet of Array.from(document.styleSheets)) {
+      try {
+        const sheetHref = sheet.href ? new URL(sheet.href, currentUrl).href : null;
+        if (!sheetHref || !processedUrls.has(sheetHref)) {
+          const rules = sheet.cssRules || sheet.rules;
+          if (rules && rules.length > 0) {
+            const rulesText = Array.from(rules)
+              .map((r) => r.cssText)
+              .join('\n');
+            if (rulesText.trim() && !masterCss.includes(rulesText.slice(0, 100))) {
+              masterCss += `/* In-Memory / CSSOM Rules */\n${rulesText}\n\n`;
+            }
+          }
+        }
+      } catch {}
+    }
+  } catch {}
 
   // Append essential animation, layout, video centering and marquee rules
   const essentialRules = `
@@ -271,7 +361,7 @@ export async function generateClonedPackage(options?: CloneOptions): Promise<{
   linkCss.href = 'styles.css';
   head.appendChild(linkCss);
 
-  // 9. Convert <img> sources to Base64 Data URLs (Woblo technique)
+  // 10. Convert <img> sources to Base64 Data URLs (Woblo technique)
   const liveImages = document.querySelectorAll('img');
   const clonedImages = [...doc.querySelectorAll('img')];
   await Promise.all(
@@ -301,7 +391,7 @@ export async function generateClonedPackage(options?: CloneOptions): Promise<{
     })
   );
 
-  // 10. Embed Master Interactive Runtime Engine
+  // 11. Embed Master Interactive Runtime Engine
   // Controls Hamburger Menu open/close ('X' animation) and auto-plays all videos
   const runtimeScript = doc.createElement('script');
   runtimeScript.setAttribute('data-zippix', 'master-runtime-engine');
@@ -408,8 +498,13 @@ export async function generateClonedPackage(options?: CloneOptions): Promise<{
 
         document.addEventListener('click', function(e) {
           if (isOpen) {
-            var inside = menuDrawers.some(function(d) { return d.contains(e.target); }) ||
-                         menuButtons.some(function(b) { return b.contains(e.target); });
+            var inside =
+              menuDrawers.some(function(d) {
+                return d.contains(e.target);
+              }) ||
+              menuButtons.some(function(b) {
+                return b.contains(e.target);
+              });
             if (!inside) toggleMenu(false);
           }
         });
@@ -421,33 +516,39 @@ export async function generateClonedPackage(options?: CloneOptions): Promise<{
           '[class*="opacity-0"]:not([role="menu"]):not(nav[class*="shadow-menu"]):not(header), [class*="translate-y-"], [data-scroll]'
         );
         if ('IntersectionObserver' in window) {
-          var obs = new IntersectionObserver(function(entries) {
-            entries.forEach(function(entry) {
-              if (entry.isIntersecting) {
-                var el = entry.target;
-                el.style.setProperty('opacity', '1', 'important');
-                el.style.setProperty('transform', 'none', 'important');
-                el.style.setProperty('visibility', 'visible', 'important');
-                el.style.transition = 'opacity 0.6s cubic-bezier(0.16, 1, 0.3, 1), transform 0.6s cubic-bezier(0.16, 1, 0.3, 1)';
-                obs.unobserve(el);
-              }
-            });
-          }, { threshold: 0.08, rootMargin: '0px 0px -50px 0px' });
-          elements.forEach(function(el) { obs.observe(el); });
+          var obs = new IntersectionObserver(
+            function(entries) {
+              entries.forEach(function(entry) {
+                if (entry.isIntersecting) {
+                  var el = entry.target;
+                  el.style.setProperty('opacity', '1', 'important');
+                  el.style.setProperty('transform', 'none', 'important');
+                  el.style.setProperty('visibility', 'visible', 'important');
+                  el.style.transition =
+                    'opacity 0.6s cubic-bezier(0.16, 1, 0.3, 1), transform 0.6s cubic-bezier(0.16, 1, 0.3, 1)';
+                  obs.unobserve(el);
+                }
+              });
+            },
+            { threshold: 0.08, rootMargin: '0px 0px -50px 0px' }
+          );
+          elements.forEach(function(el) {
+            obs.observe(el);
+          });
         } else {
-          elements.forEach(function(el) { el.style.setProperty('opacity', '1', 'important'); });
+          elements.forEach(function(el) {
+            el.style.setProperty('opacity', '1', 'important');
+          });
         }
       });
     })();
   `;
   head.appendChild(runtimeScript);
 
-  // 11. Generate Output Files
+  // 12. Generate Output Files
   const cleanHtml = '<!DOCTYPE html>\n' + doc.documentElement.outerHTML;
   const siteName = (
-    document.title
-      ? document.title.replace(/[^a-z0-9]/gi, '-').toLowerCase()
-      : 'website'
+    document.title ? document.title.replace(/[^a-z0-9]/gi, '-').toLowerCase() : 'website'
   )
     .replace(/-+/g, '-')
     .replace(/^-|-$/g, '') || 'website-clone';
@@ -488,10 +589,16 @@ export async function downloadPageAsZip(options?: CloneOptions): Promise<void> {
  */
 export async function downloadPageAsHtml(options?: CloneOptions): Promise<void> {
   const { html, css, siteName } = await generateClonedPackage(options);
-  const inlinedHtml = html.replace(
-    '<link rel="stylesheet" href="styles.css">',
-    `<style data-zippix="master-styles">\n${css}\n</style>`
-  );
+  let inlinedHtml = html;
+  const styleBlock = `<style data-zippix="master-styles">\n${css}\n</style>`;
+  if (inlinedHtml.includes('<link rel="stylesheet" href="styles.css">')) {
+    inlinedHtml = inlinedHtml.replace('<link rel="stylesheet" href="styles.css">', styleBlock);
+  } else if (inlinedHtml.includes('</head>')) {
+    inlinedHtml = inlinedHtml.replace('</head>', `${styleBlock}\n</head>`);
+  } else {
+    inlinedHtml = `${styleBlock}\n${inlinedHtml}`;
+  }
+
   const blob = new Blob([inlinedHtml], { type: 'text/html;charset=utf-8' });
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
