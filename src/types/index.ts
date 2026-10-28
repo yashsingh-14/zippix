@@ -22,14 +22,16 @@ export interface ExtractedFont {
 
 export interface ExtractedAsset {
   id: string;
-  type: 'svg' | 'image' | 'background' | 'lottie';
+  type: 'svg' | 'image' | 'video' | 'background' | 'lottie' | 'audio';
   name: string;
   url: string;
   previewUrl: string;
+  poster?: string;
   content?: string; // Raw SVG or data URI
   width?: number;
   height?: number;
   format?: string;
+  duration?: number;
 }
 
 export interface BoxModel {
